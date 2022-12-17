@@ -1,0 +1,26 @@
+[package]
+name = "genbu-axum-server"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+axum = { version = "0.6", features = ["macros", "multipart"] }
+axum-extra = { version = "0.4", features = ["cookie", "spa"] }
+genbu-auth = { version = "0.1.0", features = ["http"], path = "../auth" }
+genbu-stores = { version = "0.1.0", path = "../stores", features = ["openapi"] }
+hyper = "0.14.20"
+secrecy = { version = "0.8.0", features = ["serde"] }
+serde = { version = "1.0.145", features = ["derive"] }
+tempfile = "3.3.0"
+time = "0.3.17"
+tower = "0.4.13"
+tower-http = { version = "0.3.4", features = ["auth", "trace", "sensitive-headers", "metrics", "cors"] }
+tracing = "0.1.37"
+tracing-subscriber = "0.3.16"
+utoipa = { version = "2.4.2", features = ["axum_extras", "time", "uuid"] }
+utoipa-swagger-ui = { version = "3.0.1", features = ["axum"] }
+
+[features]
+production = ["genbu-auth/production", "axum/http2", "tracing-subscriber/parking_lot"]
