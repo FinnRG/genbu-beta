@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum PresignError {
     #[error("file size {0} is too large")]
     FileTooLarge(usize),
@@ -16,6 +17,7 @@ pub enum PresignError {
 }
 
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum FileStoreError {
     #[error("unable to establish a file storage connection")]
     Connection(#[source] Box<dyn Error>),
@@ -68,7 +70,7 @@ pub trait FileStore: Clone + Sized + Send + Sync + 'static {
     async fn upload_file(
         &mut self,
         bucket: Bucket,
-        file: &File,
+        name: &File,
         name: &str,
     ) -> Result<(), FileStoreError>;
     async fn delete_file(&mut self, bucket: Bucket, name: &str) -> Result<(), FileStoreError>;
@@ -82,8 +84,14 @@ pub trait FileStore: Clone + Sized + Send + Sync + 'static {
     async fn get_presigned_upload_urls(
         &self,
         bucket: Bucket,
-        file: &str,
-        file_size: usize,
+        name: &str,
+        size: usize,
         chunk_size: usize,
-    ) -> Result<Vec<String>, FileStoreError>;
+    ) -> Result<(Vec<String>, String), FileStoreError>;
+    async fn finish_multipart_upload(
+        &self,
+        bucket: Bucket,
+        name: &str,
+        upload_id: &str,
+    ) -> Result<(), FileStoreError>;
 }

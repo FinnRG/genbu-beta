@@ -3,18 +3,18 @@ use std::{
     fmt::Debug,
     fs::File,
     io::{BufReader, Read},
-    path::Path,
     time::Duration,
 };
 
 use async_trait::async_trait;
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_s3::{
+    model::{CompletedMultipartUpload, CompletedPart, Part},
     presigning::config::PresigningConfig,
     types::{ByteStream, SdkError},
     Client, Endpoint,
 };
-use genbu_stores::files::{Bucket, FileStore, FileStoreError, PresignError};
+use genbu_stores::files::file_storage::{Bucket, FileStore, FileStoreError, PresignError};
 use thiserror::Error;
 
 #[derive(Clone)]
@@ -102,6 +102,7 @@ impl FileStore for S3Store {
             .await;
         res.map(|_| ()).map_err(map_sdk_err)
     }
+
     async fn delete_file(&mut self, bucket: Bucket, name: &str) -> Result<(), FileStoreError> {
         let res = self
             .client
@@ -112,6 +113,7 @@ impl FileStore for S3Store {
             .await;
         res.map(|_| ()).map_err(map_sdk_err)
     }
+
     async fn get_presigned_url(
         &self,
         bucket: Bucket,
@@ -130,6 +132,7 @@ impl FileStore for S3Store {
             Err(e) => new_presign_err(e),
         }
     }
+
     async fn get_presigned_upload_url(
         &self,
         bucket: Bucket,
@@ -148,13 +151,14 @@ impl FileStore for S3Store {
             Err(e) => new_presign_err(e),
         }
     }
+
     async fn get_presigned_upload_urls(
         &self,
         bucket: Bucket,
         file: &str,
         file_size: usize,
         chunk_size: usize,
-    ) -> Result<Vec<String>, FileStoreError> {
+    ) -> Result<(Vec<String>, String), FileStoreError> {
         let mut chunk_count = (file_size / chunk_size) + 1;
         let size_of_last_chunk = file_size % chunk_size;
 
@@ -189,7 +193,7 @@ impl FileStore for S3Store {
                 .bucket(bucket.to_bucket_name())
                 .upload_id(upload_id)
                 .part_number(part_number)
-                .presigned(PresigningConfig::expires_in(Duration::from_secs(60)).unwrap())
+                .presigned(PresigningConfig::expires_in(Duration::from_secs(1800)).unwrap())
                 .await;
             let presign_res = match presign_res {
                 Ok(res) => res,
@@ -197,8 +201,54 @@ impl FileStore for S3Store {
             };
             upload_parts.push(presign_res.uri().to_string());
         }
-        Ok(upload_parts)
+        Ok((upload_parts, upload_id.into()))
     }
+
+    async fn finish_multipart_upload(
+        &self,
+        bucket: Bucket,
+        file: &str,
+        upload_id: &str,
+    ) -> Result<(), FileStoreError> {
+        let parts = self
+            .client
+            .list_parts()
+            .bucket(bucket.to_bucket_name())
+            .upload_id(upload_id)
+            .key(file)
+            .send()
+            .await
+            .map_err(map_sdk_err)?;
+        let completed_multipart_upload: CompletedMultipartUpload =
+            CompletedMultipartUpload::builder()
+                .set_parts(
+                    parts
+                        .parts()
+                        .map(|parts| parts.iter().map(part_to_completed).collect()),
+                )
+                .build();
+        self.client
+            .complete_multipart_upload()
+            .bucket(bucket.to_bucket_name())
+            .key(file)
+            .upload_id(upload_id)
+            .multipart_upload(completed_multipart_upload)
+            .send()
+            .await
+            .map(|_| ())
+            .map_err(map_sdk_err)
+    }
+}
+
+fn part_to_completed(p: &Part) -> CompletedPart {
+    CompletedPart::builder()
+        .set_e_tag(p.e_tag().map(Into::into))
+        .part_number(p.part_number())
+        .set_checksum_sha1(p.checksum_sha1().map(Into::into))
+        .set_checksum_crc32(p.checksum_crc32().map(Into::into))
+        .set_checksum_sha256(p.checksum_sha256().map(Into::into))
+        .set_checksum_crc32_c(p.checksum_crc32_c().map(Into::into))
+        .build()
 }
 
 #[derive(Debug, Error)]

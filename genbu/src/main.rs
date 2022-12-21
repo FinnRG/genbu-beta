@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use genbu_axum_server::builder::GenbuServerBuilder;
 use genbu_default_connectors::{memory::MemStore, postgres::PgStore, s3};
-use genbu_stores::stores::Store;
+use genbu_stores::{files::file_storage::FileStore, stores::DataStore};
 
 #[tokio::main]
 async fn main() -> Result<(), impl Debug> {
@@ -15,7 +15,8 @@ async fn main() -> Result<(), impl Debug> {
         .unwrap();
     let _mem_store = MemStore::new();
 
-    let s3_store = s3::S3Store::new().await;
+    let mut s3_store = s3::S3Store::new().await;
+    s3_store.setup().await;
 
     let server = GenbuServerBuilder::new()
         .with_store(_mem_store)

@@ -1,7 +1,7 @@
 use std::iter::once;
 
 use axum::{Extension, Router, Server};
-use genbu_stores::{files::FileStore, stores::Store};
+use genbu_stores::{files::file_storage::FileStore, stores::DataStore};
 use hyper::header;
 use tower::ServiceBuilder;
 use tower_http::{sensitive_headers::SetSensitiveRequestHeadersLayer, trace::TraceLayer};
@@ -13,17 +13,17 @@ use crate::{
     routes::{files, users},
 };
 
-pub struct GenbuServerBuilder<S: Store, F: FileStore> {
+pub struct GenbuServerBuilder<S: DataStore, F: FileStore> {
     users: Option<S>,
     files: Option<F>,
 }
 
-pub struct GenbuServer<S: Store, F: FileStore> {
+pub struct GenbuServer<S: DataStore, F: FileStore> {
     users: S,
     files: F,
 }
 
-impl<S: Store + Send + Sync, F: FileStore + Send + Sync> GenbuServerBuilder<S, F> {
+impl<S: DataStore + Send + Sync, F: FileStore + Send + Sync> GenbuServerBuilder<S, F> {
     #[must_use]
     pub fn new() -> Self {
         GenbuServerBuilder {
@@ -52,15 +52,15 @@ impl<S: Store + Send + Sync, F: FileStore + Send + Sync> GenbuServerBuilder<S, F
     }
 }
 
-impl<S: Store, F: FileStore> Default for GenbuServerBuilder<S, F> {
+impl<S: DataStore, F: FileStore> Default for GenbuServerBuilder<S, F> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<S: Store, F: FileStore> GenbuServer<S, F> {
+impl<S: DataStore, F: FileStore> GenbuServer<S, F> {
     fn api_router() -> Router {
-        users::router::<S, F>()
+        users::router::<S>()
             .merge(files::router::<F>())
             .merge(SwaggerUi::new("/swagger-ui").url("/api-doc/openapi.json", ApiDoc::openapi()))
     }

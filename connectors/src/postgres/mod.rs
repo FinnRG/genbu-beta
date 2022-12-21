@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use genbu_stores::{
-    stores::{Reset, Setup, Store},
+    stores::{DataStore, Reset, Setup},
     users::{User, UserError, UserStore, UserUpdate},
     Uuid,
 };
@@ -121,7 +121,7 @@ impl UserStore for PgStore {
 }
 
 #[async_trait]
-impl Store for PgStore {
+impl DataStore for PgStore {
     async fn new(conn: String) -> Result<Self, Box<dyn std::error::Error>> {
         let pool = PgPoolOptions::new().connect_lazy(&conn)?;
         Ok(PgStore {

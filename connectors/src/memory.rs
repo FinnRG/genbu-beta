@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use genbu_stores::{
-    stores::{Reset, Setup, Store},
+    stores::{DataStore, Reset, Setup},
     users::{User, UserError, UserStore, UserUpdate},
     Uuid,
 };
@@ -88,7 +88,7 @@ impl UserStore for MemStore {
 }
 
 #[async_trait]
-impl Store for MemStore {
+impl DataStore for MemStore {
     async fn new(_: String) -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self::new())
     }

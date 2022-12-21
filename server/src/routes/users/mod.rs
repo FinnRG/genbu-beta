@@ -11,7 +11,6 @@ use axum::{
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use genbu_auth::authn::{self, verify_password};
 use genbu_stores::{
-    files::FileStore,
     users::{User, UserAvatar, UserError, UserStore},
     Uuid,
 };
@@ -22,7 +21,7 @@ use utoipa::ToSchema;
 
 use crate::middlewares::auth::auth;
 
-pub fn router<US: UserStore, F: FileStore>() -> Router {
+pub fn router<US: UserStore>() -> Router {
     Router::new()
         .route("/api/user/:id", get(get_user::<US>))
         .route("/api/user/all", get(get_users::<US>))

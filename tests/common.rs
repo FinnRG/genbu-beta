@@ -8,7 +8,7 @@ use axum::{
 use genbu_axum_server::builder::GenbuServerBuilder;
 use genbu_default_connectors::{memory::MemStore, postgres::PgStore, s3};
 use genbu_stores::{
-    stores::{Reset, Setup, Store},
+    stores::{DataStore, Reset, Setup},
     Uuid,
 };
 use http_body::combinators::UnsyncBoxBody;

@@ -1,3 +1,4 @@
+use crate::routes::files::{self, UploadFileRequest, UploadFileResponse, UploadUnsignedRequest};
 use crate::routes::users::{self, NewUser, UserResponse};
 use genbu_stores::users::{User, UserAvatar};
 use utoipa::{
@@ -12,13 +13,14 @@ use utoipa::{
         users::get_users,
         users::create_user,
         users::delete_user,
-        users::register
+        users::register,
+        files::get_presigned_url,
+        files::upload_file_request,
+        files::upload_unsigned
+        
     ),
-    components(schemas(User, UserAvatar, NewUser, UserResponse)),
+    components(schemas(User, UserAvatar, NewUser, UserResponse, UploadFileRequest, UploadFileResponse, UploadUnsignedRequest)),
     modifiers(&SecurityAddon),
-    tags(
-        (name = "user", description = "User management API")
-    ),
     security(
         ("token" = [])
     )
