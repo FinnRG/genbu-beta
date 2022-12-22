@@ -1,10 +1,16 @@
 use std::iter::once;
 
-use axum::{Extension, Router, Server};
+use axum::{
+    response::{IntoResponse, Redirect},
+    Extension, Router, Server,
+};
+use axum_extra::routing::SpaRouter;
 use genbu_stores::{files::file_storage::FileStore, stores::DataStore};
-use hyper::header;
+use hyper::{header, Uri};
 use tower::ServiceBuilder;
-use tower_http::{sensitive_headers::SetSensitiveRequestHeadersLayer, trace::TraceLayer};
+use tower_http::{
+    cors::CorsLayer, sensitive_headers::SetSensitiveRequestHeadersLayer, trace::TraceLayer,
+};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -66,14 +72,24 @@ impl<S: DataStore, F: FileStore> GenbuServer<S, F> {
     }
 
     pub fn app(&self) -> Router {
-        Self::api_router()
+        let mut app = Self::api_router()
             .layer(
                 ServiceBuilder::new()
                     .layer(SetSensitiveRequestHeadersLayer::new(once(header::COOKIE)))
                     .layer(TraceLayer::new_for_http()),
             )
             .layer(Extension(self.users.clone()))
-            .layer(Extension(self.files.clone()))
+            .layer(Extension(self.files.clone()));
+        #[cfg(not(debug_assertions))]
+        {
+            let spa = SpaRouter::new("", "../genbu-frontend/dist");
+            app = app.merge(spa);
+        }
+        #[cfg(debug_assertions)]
+        {
+            app = app.layer(CorsLayer::permissive())
+        }
+        app
     }
 
     // TODO: Proper error handling

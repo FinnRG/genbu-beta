@@ -27,7 +27,7 @@ pub fn router<US: UserStore>() -> Router {
         .route("/api/user/all", get(get_users::<US>))
         .route("/api/user", post(create_user::<US>))
         .route("/api/user/:id", delete(delete_user::<US>))
-        .route_layer(middleware::from_fn(auth))
+        // .route_layer(middleware::from_fn(auth))
         .route("/api/register", post(register::<US>))
         .route("/api/login", post(login::<US>))
 }
