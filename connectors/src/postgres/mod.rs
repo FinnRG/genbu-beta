@@ -133,6 +133,7 @@ impl DataStore for PgStore {
 
 #[async_trait]
 impl Reset for PgStore {
+    #[cfg(debug_assertions)]
     async fn reset(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         match sqlx::postgres::Postgres::drop_database(&self.conn_str).await {
             Err(e) => {

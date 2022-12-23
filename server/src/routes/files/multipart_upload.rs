@@ -1,10 +1,10 @@
-use axum::{response::IntoResponse, Extension, Json};
+use axum::{Extension, Json};
 use genbu_stores::files::file_storage::{Bucket, FileStore};
-use hyper::StatusCode;
-use tracing::error;
+
+use super::{upload::UploadFileRequest, APIResult};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-pub(crate) struct FinishUploadRequest {
+pub struct FinishUploadRequest {
     name: String,
     upload_id: String,
 }
@@ -17,38 +17,29 @@ async fn single_file_upload_url(
     bucket: Bucket,
     name: &str,
     size: usize,
-) -> Result<(Vec<String>, Option<String>), StatusCode> {
-    match file_store
+) -> APIResult<(Vec<String>, Option<String>)> {
+    let (uris, upload_id) = file_store
         .get_presigned_upload_urls(bucket, name, size, CHUNK_SIZE)
-        .await
-    {
-        Ok((uris, upload_id)) => Ok((uris, Some(upload_id))),
-        Err(e) => {
-            error!("file store error {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
-    }
+        .await?;
+    Ok((uris, Some(upload_id)))
 }
 
 async fn multipart_upload_url(
     file_store: impl FileStore,
     bucket: Bucket,
     name: &str,
-) -> Result<(Vec<String>, Option<String>), StatusCode> {
-    return file_store
+) -> APIResult<(Vec<String>, Option<String>)> {
+    let res = file_store
         .get_presigned_upload_url(bucket, name)
         .await
-        .map(|uri| (vec![uri], None))
-        .map_err(|e| {
-            error!("file store error {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        });
+        .map(|uri| (vec![uri], None))?;
+    Ok(res)
 }
 
-pub(crate) async fn get_presigned_upload_urls(
+pub async fn get_presigned_upload_urls(
     file_store: impl FileStore,
-    req: super::UploadFileRequest,
-) -> Result<(Vec<String>, Option<String>), StatusCode> {
+    req: UploadFileRequest,
+) -> APIResult<(Vec<String>, Option<String>)> {
     if req.size <= CHUNK_SIZE {
         return multipart_upload_url(file_store, Bucket::UserFiles, "test_new").await;
     }
@@ -64,15 +55,12 @@ pub(crate) async fn get_presigned_upload_urls(
         (status = 500, description = "An internal error occured while uploading")
     )
 )]
-pub(crate) async fn finish_upload<F: FileStore>(
+pub async fn finish_upload<F: FileStore>(
     Extension(file_store): Extension<F>,
     Json(req): Json<FinishUploadRequest>,
-) -> impl IntoResponse {
+) -> APIResult<()> {
     file_store
         .finish_multipart_upload(Bucket::UserFiles, &req.name, &req.upload_id)
-        .await
-        .map_err(|e| {
-            error!("{:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })
+        .await?;
+    Ok(())
 }

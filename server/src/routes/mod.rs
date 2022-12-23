@@ -1,2 +1,2 @@
-pub mod files;
-pub mod users;
+pub(crate) mod files;
+pub(crate) mod users;

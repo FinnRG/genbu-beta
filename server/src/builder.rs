@@ -1,7 +1,6 @@
 use std::iter::once;
 
 use axum::{Extension, Router, Server};
-use axum_extra::routing::SpaRouter;
 use genbu_stores::{files::file_storage::FileStore, stores::DataStore};
 use hyper::header;
 use tower::ServiceBuilder;
@@ -64,7 +63,7 @@ impl<S: DataStore, F: FileStore> Default for GenbuServerBuilder<S, F> {
 impl<S: DataStore, F: FileStore> GenbuServer<S, F> {
     fn api_router() -> Router {
         users::router::<S>()
-            .merge(files::router::<F>())
+            .merge(files::routes::router::<F>())
             .merge(SwaggerUi::new("/swagger-ui").url("/api-doc/openapi.json", ApiDoc::openapi()))
     }
 
@@ -79,7 +78,7 @@ impl<S: DataStore, F: FileStore> GenbuServer<S, F> {
             .layer(Extension(self.files.clone()));
         #[cfg(not(debug_assertions))]
         {
-            let spa = SpaRouter::new("", "../genbu-frontend/dist");
+            let spa = axum_extra::routing::SpaRouter::new("", "../genbu-frontend/dist");
             app = app.merge(spa);
         }
         #[cfg(debug_assertions)]

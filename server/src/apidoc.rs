@@ -1,8 +1,11 @@
-use crate::routes::files::{
-    self, multipart_upload::FinishUploadRequest, UploadFileRequest, UploadFileResponse,
-    UploadUnsignedRequest,
+use crate::routes::{
+    files::{
+        self,
+        multipart_upload::FinishUploadRequest,
+        upload::{UploadFileRequest, UploadFileResponse, UploadUnsignedRequest},
+    },
+    users::{self, NewUser, UserResponse},
 };
-use crate::routes::users::{self, NewUser, UserResponse};
 use genbu_stores::users::{User, UserAvatar};
 use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
@@ -18,8 +21,8 @@ use utoipa::{
         users::delete_user,
         users::register,
         files::get_presigned_url,
-        files::upload_file_request,
-        files::upload_unsigned,
+        files::upload::upload_file_request,
+        files::upload::upload_unsigned,
         files::multipart_upload::finish_upload
     ),
     components(schemas(User, UserAvatar, NewUser, UserResponse, UploadFileRequest, UploadFileResponse, UploadUnsignedRequest, FinishUploadRequest)),

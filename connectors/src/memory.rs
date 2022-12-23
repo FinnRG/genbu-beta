@@ -96,6 +96,7 @@ impl DataStore for MemStore {
 
 #[async_trait]
 impl Reset for MemStore {
+    #[cfg(debug_assertions)]
     async fn reset(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     }

@@ -70,7 +70,7 @@ async fn get_users<DS: DataStore>(Extension(user_store): Extension<DS>) -> impl 
 }
 
 #[derive(Clone, Deserialize, ToSchema)]
-pub(crate) struct NewUser {
+pub struct NewUser {
     name: String,
     email: String,
     avatar: Option<UserAvatar>,
@@ -79,7 +79,7 @@ pub(crate) struct NewUser {
 }
 
 #[derive(Clone, Serialize, Deserialize, ToSchema)]
-pub(crate) struct UserResponse {
+pub struct UserResponse {
     id: Uuid,
 }
 

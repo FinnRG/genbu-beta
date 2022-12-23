@@ -1014,6 +1014,7 @@ dependencies = [
  "hyper",
  "secrecy",
  "serde",
+ "serde_json",
  "tempfile",
  "time",
  "tower",

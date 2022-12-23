@@ -7,9 +7,6 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum PresignError {
-    #[error("file size {0} is too large")]
-    FileTooLarge(usize),
-
     #[error("file store doesn't support presigning")]
     Unsupported,
 
@@ -37,6 +34,9 @@ pub enum FileStoreError {
 
     #[error("file has size 0")]
     FileIsEmpty,
+
+    #[error("file size {0} is too large")]
+    FileTooLarge(usize),
 
     #[error("unknown io error")]
     IOError(#[from] io::Error),
