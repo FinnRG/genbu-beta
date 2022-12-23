@@ -41,17 +41,17 @@ impl UserStore for MemStore {
     }
 
     async fn int_delete(&mut self, id: &Uuid) -> Result<Option<User>, Self::StoreError> {
-        match self.users.lock().remove(id) {
-            Some(user) => Ok(Some(user)),
-            None => Ok(None),
-        }
+        self.users
+            .lock()
+            .remove(id)
+            .map_or_else(|| Ok(None), |user| Ok(Some(user)))
     }
 
     async fn int_get(&self, id: &Uuid) -> Result<Option<User>, Self::StoreError> {
-        match self.users.lock().get(id) {
-            Some(user) => Ok(Some(user.clone())),
-            None => Ok(None),
-        }
+        self.users
+            .lock()
+            .get(id)
+            .map_or_else(|| Ok(None), |user| Ok(Some(user.clone())))
     }
 
     async fn int_get_all(&self) -> Result<Vec<User>, Self::StoreError> {

@@ -60,7 +60,6 @@ pub struct TestClient {
 }
 
 impl TestClient {
-    #[must_use]
     pub async fn new() -> Self {
         // TODO: Use PgStore and MemStore based on feature flags
         let app = build_app().await;

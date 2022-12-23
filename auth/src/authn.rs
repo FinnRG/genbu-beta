@@ -93,7 +93,7 @@ impl Claims {
     #[must_use]
     pub fn new(id: Uuid) -> Self {
         let exp = OffsetDateTime::now_utc().add(6.hours()).unix_timestamp();
-        Claims {
+        Self {
             sub: id.to_string(),
             exp,
         }
@@ -167,7 +167,7 @@ use http::StatusCode;
 impl From<HashError> for StatusCode {
     fn from(_: HashError) -> Self {
         // It's safe to assume, that a hash error is always an internal error
-        StatusCode::INTERNAL_SERVER_ERROR
+        Self::INTERNAL_SERVER_ERROR
     }
 }
 
@@ -175,17 +175,17 @@ impl From<&ExtJWTErrorKind> for JWTErrorKind {
     fn from(value: &ExtJWTErrorKind) -> Self {
         match value {
             ExtJWTErrorKind::InvalidEcdsaKey | ExtJWTErrorKind::InvalidRsaKey(_) => {
-                JWTErrorKind::Configuration
+                Self::Configuration
             }
-            ExtJWTErrorKind::Crypto(_) => JWTErrorKind::Internal,
-            _ => JWTErrorKind::Invalid, // This generally prefers Invalid over Internal
+            ExtJWTErrorKind::Crypto(_) => Self::Internal,
+            _ => Self::Invalid, // This generally prefers Invalid over Internal
         }
     }
 }
 
 impl From<ExtJWTError> for JWTError {
     fn from(value: ExtJWTError) -> Self {
-        JWTError {
+        Self {
             kind: JWTErrorKind::from(value.kind()),
             source: value,
         }
@@ -196,9 +196,9 @@ impl From<ExtJWTError> for JWTError {
 impl From<JWTError> for StatusCode {
     fn from(value: JWTError) -> Self {
         match value.kind {
-            JWTErrorKind::Invalid => StatusCode::UNAUTHORIZED,
+            JWTErrorKind::Invalid => Self::UNAUTHORIZED,
             JWTErrorKind::Internal | JWTErrorKind::Configuration => {
-                StatusCode::INTERNAL_SERVER_ERROR
+                Self::INTERNAL_SERVER_ERROR
             }
         }
     }

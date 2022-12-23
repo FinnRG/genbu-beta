@@ -1,4 +1,7 @@
-use crate::routes::files::{self, UploadFileRequest, UploadFileResponse, UploadUnsignedRequest};
+use crate::routes::files::{
+    self, multipart_upload::FinishUploadRequest, UploadFileRequest, UploadFileResponse,
+    UploadUnsignedRequest,
+};
 use crate::routes::users::{self, NewUser, UserResponse};
 use genbu_stores::users::{User, UserAvatar};
 use utoipa::{
@@ -16,10 +19,10 @@ use utoipa::{
         users::register,
         files::get_presigned_url,
         files::upload_file_request,
-        files::upload_unsigned
-        
+        files::upload_unsigned,
+        files::multipart_upload::finish_upload
     ),
-    components(schemas(User, UserAvatar, NewUser, UserResponse, UploadFileRequest, UploadFileResponse, UploadUnsignedRequest)),
+    components(schemas(User, UserAvatar, NewUser, UserResponse, UploadFileRequest, UploadFileResponse, UploadUnsignedRequest, FinishUploadRequest)),
     modifiers(&SecurityAddon),
     security(
         ("token" = [])

@@ -1,6 +1,7 @@
 use std::{error::Error, fs::File, io, path::PathBuf};
 
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -42,7 +43,7 @@ pub enum FileStoreError {
 }
 
 #[non_exhaustive]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Bucket {
     ProfileImages,
     VideoFiles,
@@ -52,12 +53,12 @@ pub enum Bucket {
 
 impl Bucket {
     #[must_use]
-    pub fn to_bucket_name(&self) -> &str {
+    pub const fn to_bucket_name(&self) -> &str {
         match self {
-            Bucket::ProfileImages => "avatars",
-            Bucket::VideoFiles => "videos",
-            Bucket::UserFiles => "userfiles",
-            Bucket::NotebookFiles => "notebookfiles",
+            Self::ProfileImages => "avatars",
+            Self::VideoFiles => "videos",
+            Self::UserFiles => "userfiles",
+            Self::NotebookFiles => "notebookfiles",
         }
     }
 }

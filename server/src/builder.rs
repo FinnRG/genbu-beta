@@ -1,12 +1,9 @@
 use std::iter::once;
 
-use axum::{
-    response::{IntoResponse, Redirect},
-    Extension, Router, Server,
-};
+use axum::{Extension, Router, Server};
 use axum_extra::routing::SpaRouter;
 use genbu_stores::{files::file_storage::FileStore, stores::DataStore};
-use hyper::{header, Uri};
+use hyper::header;
 use tower::ServiceBuilder;
 use tower_http::{
     cors::CorsLayer, sensitive_headers::SetSensitiveRequestHeadersLayer, trace::TraceLayer,
@@ -29,7 +26,7 @@ pub struct GenbuServer<S: DataStore, F: FileStore> {
     files: F,
 }
 
-impl<S: DataStore + Send + Sync, F: FileStore + Send + Sync> GenbuServerBuilder<S, F> {
+impl<S: DataStore, F: FileStore + Send + Sync> GenbuServerBuilder<S, F> {
     #[must_use]
     pub fn new() -> Self {
         GenbuServerBuilder {

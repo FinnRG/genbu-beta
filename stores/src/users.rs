@@ -1,5 +1,6 @@
 use std::{error::Error, fmt::Debug, str::FromStr};
 
+use crate::util::{deep_into, deep_into_vec};
 use async_trait::async_trait;
 use oso::PolarClass;
 use serde::{Deserialize, Serialize};
@@ -27,7 +28,7 @@ pub struct User {
 impl User {
     #[must_use]
     pub fn template() -> Self {
-        User {
+        Self {
             id: Uuid::new_v4(),
             name: String::new(),
             email: String::new(),
@@ -44,12 +45,12 @@ pub struct UserAvatar(Uuid);
 
 impl UserAvatar {
     #[must_use]
-    pub fn new(id: Uuid) -> Self {
-        UserAvatar(id)
+    pub const fn new(id: Uuid) -> Self {
+        Self(id)
     }
 
     #[must_use]
-    pub fn id(&self) -> Uuid {
+    pub const fn id(&self) -> Uuid {
         self.0
     }
 }
@@ -65,7 +66,7 @@ impl FromStr for UserAvatar {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match Uuid::from_str(s) {
-            Ok(id) => Ok(UserAvatar(id)),
+            Ok(id) => Ok(Self(id)),
             Err(e) => Err(UserAvatarError::UuidError(e)),
         }
     }
@@ -96,25 +97,9 @@ pub struct UserUpdate {
     pub avatar: Option<UserAvatar>,
 }
 
-// Used to convert the internal user representations into the standard user.
-fn deep_into<T: Into<U>, U, E: Into<F>, F>(res: Result<Option<T>, E>) -> Result<Option<U>, F> {
-    match res {
-        Ok(Some(u)) => Ok(Some(u.into())),
-        Ok(None) => Ok(None),
-        Err(e) => Err(e.into()),
-    }
-}
-
-fn deep_into_vec<T: Into<U>, U, E: Into<F>, F>(res: Result<Vec<T>, E>) -> Result<Vec<U>, F> {
-    match res {
-        Ok(mut v) => Ok(v.drain(..).map(Into::into).collect::<Vec<U>>()),
-        Err(e) => Err(e.into()),
-    }
-}
-
 /// Main data layer abstraction for users.
 #[async_trait]
-pub trait UserStore: Clone + Sized + Send + Sync + 'static {
+pub trait UserStore {
     // TODO: Better error handling
     type StoreUser: Into<User>;
     type StoreError: Into<UserError>;
@@ -124,6 +109,7 @@ pub trait UserStore: Clone + Sized + Send + Sync + 'static {
         self.int_add(user).await.map_err(Into::into)
     }
 
+    // TODO: Test that the delete endpoint really returns the user if it previously existed
     async fn int_delete(&mut self, id: &Uuid) -> Result<Option<Self::StoreUser>, Self::StoreError>;
     async fn delete(&mut self, id: &Uuid) -> Result<Option<User>, UserError> {
         deep_into(self.int_delete(id).await)

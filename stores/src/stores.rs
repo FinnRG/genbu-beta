@@ -4,7 +4,7 @@ use std::error::Error;
 use crate::users::UserStore;
 
 #[async_trait]
-pub trait DataStore: Sized + UserStore + Reset + Setup {
+pub trait DataStore: Sized + UserStore + Reset + Setup + Send + Sync + Clone + 'static {
     // TODO: Replace this with server config
     async fn new(arg: String) -> Result<Self, Box<dyn Error>>;
 }

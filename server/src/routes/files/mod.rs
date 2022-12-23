@@ -1,10 +1,10 @@
 use std::{
     fs::File,
-    io::{Read, Seek, SeekFrom, Write},
+    io::{Seek, SeekFrom, Write},
 };
 
 use axum::{
-    extract::{Multipart, Path},
+    extract::{multipart::Field, Multipart, Path},
     response::IntoResponse,
     routing::{get, post},
     Extension, Json, Router,
@@ -19,17 +19,23 @@ use tempfile::tempfile;
 use tracing::error;
 use utoipa::ToSchema;
 
-pub fn router<F: FileStore>() -> Router {
+pub(crate) mod multipart_upload;
+
+pub(crate) fn router<F: FileStore>() -> Router {
     Router::new()
         .route("/api/files", get(get_presigned_url::<F>))
         .route("/api/files/upload", post(upload_file_request::<F>)) // TODO: COnsider using put
         // instead of post,
         .route("/api/files/upload/unsigned/:id", post(upload_unsigned::<F>)) // TODO: Remove upload
-        .route("/api/files/upload/finish", post(finish_upload::<F>))
+        .route(
+            "/api/files/upload/finish",
+            post(multipart_upload::finish_upload::<F>),
+        )
     //.route_layer(middleware::from_fn(auth))
     // TODO: Add auth middleware back
 }
 
+// TODO: Accept any file
 #[utoipa::path(
     get,
     path = "/api/files",
@@ -76,7 +82,8 @@ async fn upload_file_request<F: FileStore>(
         return Err(StatusCode::FORBIDDEN);
     }
     if <F as FileStore>::can_presign() {
-        let (uris, upload_id) = get_presigned_upload_urls(file_store, req).await?;
+        let (uris, upload_id) =
+            multipart_upload::get_presigned_upload_urls(file_store, req).await?;
         return Ok(Json(UploadFileResponse {
             presigned: true,
             uris: Some(uris),
@@ -90,35 +97,11 @@ async fn upload_file_request<F: FileStore>(
     }))
 }
 
-// TODO: Change this
-static CHUNK_SIZE: usize = 10_000_000;
-
-async fn get_presigned_upload_urls<F: FileStore>(
-    file_store: F,
-    req: UploadFileRequest,
-) -> Result<(Vec<String>, Option<String>), StatusCode> {
-    if req.size <= CHUNK_SIZE {
-        return match file_store
-            .get_presigned_upload_url(Bucket::UserFiles, "test_new")
-            .await
-        {
-            Ok(uri) => Ok((vec![uri], None)),
-            Err(e) => {
-                error!("file store error {:?}", e);
-                Err(StatusCode::INTERNAL_SERVER_ERROR)
-            }
-        };
-    }
-    match file_store
-        .get_presigned_upload_urls(Bucket::UserFiles, "test_new", req.size, CHUNK_SIZE)
-        .await
-    {
-        Ok((uris, upload_id)) => Ok((uris, Some(upload_id))),
-        Err(e) => {
-            error!("file store error {:?}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
-    }
+async fn write_part_to_file(file: &mut File, field: Field<'_>) {
+    let data = field.bytes().await.unwrap();
+    // TODO: Better error handling
+    file.write_all(&data).unwrap();
+    file.seek(SeekFrom::Start(0)).unwrap();
 }
 
 #[allow(dead_code)]
@@ -141,43 +124,19 @@ pub(crate) struct UploadUnsignedRequest {
         ("id" = Uuid, Path, description = "Upload task id")
     )
 )]
+// TODO: Use the task_id
 async fn upload_unsigned<F: FileStore>(
     Extension(mut file_store): Extension<F>,
     Path(task_id): Path<Uuid>,
     mut multipart: Multipart,
 ) -> Result<(), StatusCode> {
-    // TODO: Use the task_id
-    match (tempfile(), multipart.next_field().await) {
-        (Ok(mut file), Ok(Some(field))) => {
-            let data = field.bytes().await.unwrap();
-            // TODO: Better error handling
-            file.write(&data).unwrap();
-            file.seek(SeekFrom::Start(0)).unwrap();
-            file_store
-                .upload_file(Bucket::UserFiles, &file, "test_unsigned")
-                .await
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-            Ok(())
-        }
-        _ => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    if let (Ok(mut file), Ok(Some(field))) = (tempfile(), multipart.next_field().await) {
+        write_part_to_file(&mut file, field).await;
+        file_store
+            .upload_file(Bucket::UserFiles, &file, "test_unsigned")
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        return Ok(());
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub(crate) struct FinishUploadRequest {
-    name: String,
-    upload_id: String,
-}
-
-async fn finish_upload<F: FileStore>(
-    Extension(file_store): Extension<F>,
-    Json(req): Json<FinishUploadRequest>,
-) -> impl IntoResponse {
-    file_store
-        .finish_multipart_upload(Bucket::UserFiles, &req.name, &req.upload_id)
-        .await
-        .map_err(|e| {
-            error!("{:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })
+    Err(StatusCode::INTERNAL_SERVER_ERROR)
 }

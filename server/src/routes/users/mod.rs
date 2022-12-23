@@ -11,7 +11,8 @@ use axum::{
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use genbu_auth::authn::{self, verify_password};
 use genbu_stores::{
-    users::{User, UserAvatar, UserError, UserStore},
+    stores::DataStore,
+    users::{User, UserAvatar, UserError},
     Uuid,
 };
 use hyper::{header, StatusCode};
@@ -21,15 +22,15 @@ use utoipa::ToSchema;
 
 use crate::middlewares::auth::auth;
 
-pub fn router<US: UserStore>() -> Router {
+pub fn router<DS: DataStore>() -> Router {
     Router::new()
-        .route("/api/user/:id", get(get_user::<US>))
-        .route("/api/user/all", get(get_users::<US>))
-        .route("/api/user", post(create_user::<US>))
-        .route("/api/user/:id", delete(delete_user::<US>))
-        // .route_layer(middleware::from_fn(auth))
-        .route("/api/register", post(register::<US>))
-        .route("/api/login", post(login::<US>))
+        .route("/api/user/:id", get(get_user::<DS>))
+        .route("/api/user/all", get(get_users::<DS>))
+        .route("/api/user", post(create_user::<DS>))
+        .route("/api/user/:id", delete(delete_user::<DS>))
+        .route_layer(middleware::from_fn(auth))
+        .route("/api/register", post(register::<DS>))
+        .route("/api/login", post(login::<DS>))
 }
 
 #[utoipa::path(
@@ -42,8 +43,8 @@ pub fn router<US: UserStore>() -> Router {
         ("id" = Uuid, Path, description = "User database id")
     )
 )]
-async fn get_user<US: UserStore>(
-    Extension(user_store): Extension<US>,
+async fn get_user<DS: DataStore>(
+    Extension(user_store): Extension<DS>,
     Path(user_id): Path<Uuid>,
 ) -> impl IntoResponse {
     match user_store.get(&user_id).await {
@@ -61,7 +62,7 @@ async fn get_user<US: UserStore>(
         (status = 200, description = "List all users successfully", body = [User])
     )
 )]
-async fn get_users<US: UserStore>(Extension(user_store): Extension<US>) -> impl IntoResponse {
+async fn get_users<DS: DataStore>(Extension(user_store): Extension<DS>) -> impl IntoResponse {
     match user_store.get_all().await {
         Ok(users) => Ok(Json(users)),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -82,8 +83,8 @@ pub(crate) struct UserResponse {
     id: Uuid,
 }
 
-async fn add_user_to_store<US: UserStore>(
-    mut store: US,
+async fn add_user_to_store<DS: DataStore>(
+    mut store: DS,
     new_user: NewUser,
 ) -> Result<Uuid, StatusCode> {
     let hash =
@@ -121,8 +122,8 @@ async fn add_user_to_store<US: UserStore>(
         (status = 409, description = "User data already exists in the database")
     )
 )]
-async fn create_user<US: UserStore>(
-    Extension(user_store): Extension<US>,
+async fn create_user<DS: DataStore>(
+    Extension(user_store): Extension<DS>,
     Json(new_user): Json<NewUser>,
 ) -> Result<(StatusCode, Json<UserResponse>), StatusCode> {
     let new_user_res = add_user_to_store(user_store, new_user).await;
@@ -156,8 +157,8 @@ fn start_session_response(id: Uuid) -> Result<impl IntoResponse, StatusCode> {
         (status = 409, description = "User data already exists in the database")
     )
 )]
-async fn register<US: UserStore>(
-    Extension(user_store): Extension<US>,
+async fn register<DS: DataStore>(
+    Extension(user_store): Extension<DS>,
     Json(new_user): Json<NewUser>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let id = add_user_to_store(user_store, new_user).await?;
@@ -171,8 +172,8 @@ struct LoginRequest {
 }
 
 // TODO: Better logging
-async fn login<US: UserStore>(
-    Extension(user_store): Extension<US>,
+async fn login<DS: DataStore>(
+    Extension(user_store): Extension<DS>,
     Json(user): Json<LoginRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let db_user = user_store
@@ -198,8 +199,8 @@ async fn login<US: UserStore>(
         ("id" = Uuid, Path, description = "User database id")
     )
 )]
-async fn delete_user<US: UserStore>(
-    Extension(mut user_store): Extension<US>,
+async fn delete_user<DS: DataStore>(
+    Extension(mut user_store): Extension<DS>,
     Path(user_id): Path<Uuid>,
 ) -> impl IntoResponse {
     match user_store.delete(&user_id).await {
@@ -208,3 +209,6 @@ async fn delete_user<US: UserStore>(
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
+
+// TODO: Patch user
+// TODO: Separate files for routes (especially login and register)
