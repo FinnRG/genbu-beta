@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use genbu_stores::{
-    files::file_storage::FileError,
     stores::{DataStore, Reset, Setup},
     users::{SResult, User, UserError, UserStore, UserUpdate},
     Uuid,
@@ -41,10 +40,8 @@ fn map_sqlx_err(value: sqlx::Error) -> UserError {
 
 #[async_trait]
 impl UserStore for PgStore {
-    type StoreUser = StoreUser;
-
     #[instrument]
-    async fn int_add(&mut self, user: &User) -> SResult<()> {
+    async fn add(&mut self, user: &User) -> SResult<()> {
         let res = sqlx::query_as!(StoreUser, r#"INSERT INTO users (id, name, email, created_at, hash, avatar) VALUES ($1, $2, $3::TEXT::CITEXT, $4, $5, $6)"#,
             user.id,
             user.name,
@@ -60,7 +57,7 @@ impl UserStore for PgStore {
     }
 
     #[instrument]
-    async fn int_delete(&mut self, id: &Uuid) -> SResult<Option<StoreUser>> {
+    async fn delete(&mut self, id: &Uuid) -> SResult<Option<User>> {
         let res = sqlx::query_as!(
             StoreUser,
             r#"DELETE FROM users WHERE id = $1 RETURNING id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: StoreUserAvatar""#,
@@ -68,12 +65,13 @@ impl UserStore for PgStore {
         )
             .fetch_optional(&self.conn)
             .await
-            .map_err(map_sqlx_err)?;
+            .map_err(map_sqlx_err)?
+            .map(Into::into);
         Ok(res)
     }
 
     #[instrument]
-    async fn int_get(&self, id: &Uuid) -> SResult<Option<StoreUser>> {
+    async fn get(&self, id: &Uuid) -> SResult<Option<User>> {
         let res = sqlx::query_as!(
             StoreUser,
             r#"SELECT id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: StoreUserAvatar" FROM users WHERE id = $1"#,
@@ -81,31 +79,36 @@ impl UserStore for PgStore {
         )
             .fetch_optional(&self.conn)
             .await
-            .map_err(map_sqlx_err)?;
+            .map_err(map_sqlx_err)?
+            .map(Into::into);
         Ok(res)
     }
 
     #[instrument]
-    async fn int_get_all(&self) -> SResult<Vec<StoreUser>> {
+    async fn get_all(&self) -> SResult<Vec<User>> {
         let res = sqlx::query_as!(
             StoreUser,
             r#"SELECT id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: StoreUserAvatar" FROM users"#
         )
             .fetch_all(&self.conn)
             .await
-            .map_err(map_sqlx_err)?;
+            .map_err(map_sqlx_err)?
+            .into_iter()
+            .map(Into::into)
+            .collect();
         Ok(res)
     }
 
     #[instrument]
-    async fn int_get_by_email(&self, email: &str) -> SResult<Option<StoreUser>> {
+    async fn get_by_email(&self, email: &str) -> SResult<Option<User>> {
         let res = sqlx::query_as!(
             StoreUser,
             r#"SELECT id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: StoreUserAvatar" FROM users WHERE email = $1::TEXT::CITEXT"#,
             email
         )
             .fetch_optional(&self.conn).await
-            .map_err(map_sqlx_err)?;
+            .map_err(map_sqlx_err)?
+            .map(Into::into);
         Ok(res)
     }
 

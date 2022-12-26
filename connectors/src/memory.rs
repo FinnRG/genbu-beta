@@ -21,9 +21,7 @@ impl MemStore {
 
 #[async_trait]
 impl UserStore for MemStore {
-    type StoreUser = User;
-
-    async fn int_add(&mut self, user: &User) -> SResult<()> {
+    async fn add(&mut self, user: &User) -> SResult<()> {
         if let Ok(Some(u)) = self.get_by_email(&user.email).await {
             return Err(UserError::EmailAlreadyExists(u.email));
         }
@@ -39,21 +37,21 @@ impl UserStore for MemStore {
         }
     }
 
-    async fn int_delete(&mut self, id: &Uuid) -> SResult<Option<User>> {
+    async fn delete(&mut self, id: &Uuid) -> SResult<Option<User>> {
         self.users
             .lock()
             .remove(id)
             .map_or_else(|| Ok(None), |user| Ok(Some(user)))
     }
 
-    async fn int_get(&self, id: &Uuid) -> SResult<Option<User>> {
+    async fn get(&self, id: &Uuid) -> SResult<Option<User>> {
         self.users
             .lock()
             .get(id)
             .map_or_else(|| Ok(None), |user| Ok(Some(user.clone())))
     }
 
-    async fn int_get_all(&self) -> SResult<Vec<User>> {
+    async fn get_all(&self) -> SResult<Vec<User>> {
         Ok(self
             .users
             .lock()
@@ -62,7 +60,7 @@ impl UserStore for MemStore {
             .collect::<Vec<User>>())
     }
 
-    async fn int_get_by_email(&self, email: &str) -> SResult<Option<User>> {
+    async fn get_by_email(&self, email: &str) -> SResult<Option<User>> {
         Ok(self
             .users
             .lock()

@@ -16,14 +16,12 @@ use aws_sdk_s3::{
 };
 use genbu_stores::{
     files::{
-        database::{UploadLease, UploadLeaseStore, UploadLeaseStoreError},
+        database::{SResult, UploadLease, UploadLeaseStore},
         file_storage::{Bucket, FileError, FileStore, PresignError},
     },
-    OffsetDateTime, Uuid,
+    Uuid,
 };
 use thiserror::Error;
-
-use crate::types::StoreUploadLease;
 
 #[derive(Clone)]
 pub struct S3Store {
@@ -245,27 +243,19 @@ impl FileStore for S3Store {
 
 #[async_trait]
 impl UploadLeaseStore for S3Store {
-    type StoreLease = StoreUploadLease;
-
-    async fn int_add(&mut self, lease: &UploadLease) -> Result<(), UploadLeaseStoreError> {
+    async fn add(&mut self, _lease: &UploadLease) -> SResult<()> {
         todo!()
     }
 
-    async fn int_delete(
-        &mut self,
-        id: &Uuid,
-    ) -> Result<Option<Self::StoreLease>, UploadLeaseStoreError> {
+    async fn delete(&mut self, _id: &Uuid) -> SResult<Option<UploadLease>> {
         todo!()
     }
 
-    async fn int_get(&self, id: &Uuid) -> Result<Option<Self::StoreLease>, UploadLeaseStoreError> {
+    async fn get(&self, _id: &Uuid) -> SResult<Option<UploadLease>> {
         todo!()
     }
 
-    async fn int_get_by_user(
-        &self,
-        id: &Uuid,
-    ) -> Result<Vec<Self::StoreLease>, UploadLeaseStoreError> {
+    async fn get_by_user(&self, _id: &Uuid) -> SResult<Vec<UploadLease>> {
         todo!()
     }
 }
