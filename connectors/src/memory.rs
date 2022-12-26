@@ -28,13 +28,13 @@ impl UserStore for MemStore {
 
         let mut users = self.users.lock();
 
-        match users.insert(user.id, user.clone()) {
-            None => Ok(()),
-            Some(old_user) => {
+        users.insert(user.id, user.clone()).map_or_else(
+            || Ok(()),
+            |old_user| {
                 users.insert(user.id, old_user);
                 Err(UserError::IDAlreadyExists(Some(user.id)))
-            }
-        }
+            },
+        )
     }
 
     async fn delete(&mut self, id: &Uuid) -> SResult<Option<User>> {

@@ -122,7 +122,7 @@ impl UserStore for PgStore {
 impl DataStore for PgStore {
     async fn new(conn: String) -> Result<Self, Box<dyn std::error::Error>> {
         let pool = PgPoolOptions::new().connect_lazy(&conn)?;
-        Ok(PgStore {
+        Ok(Self {
             conn: pool,
             conn_str: conn,
         })

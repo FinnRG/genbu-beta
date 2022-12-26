@@ -27,7 +27,7 @@ pub struct GenbuServer<S: DataStore, F: FileStore> {
 
 impl<S: DataStore, F: FileStore + Send + Sync> GenbuServerBuilder<S, F> {
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         GenbuServerBuilder {
             users: None,
             files: None,

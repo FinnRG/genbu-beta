@@ -63,10 +63,12 @@ async fn get_user<DS: DataStore>(
     )
 )]
 async fn get_users<DS: DataStore>(Extension(user_store): Extension<DS>) -> impl IntoResponse {
-    match user_store.get_all().await {
-        Ok(users) => Ok(Json(users)),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
+    user_store
+        .get_all()
+        .await
+        .map_or(Err(StatusCode::INTERNAL_SERVER_ERROR), |users| {
+            Ok(Json(users))
+        })
 }
 
 #[derive(Clone, Deserialize, ToSchema)]
@@ -131,6 +133,13 @@ async fn create_user<DS: DataStore>(
     Ok((StatusCode::CREATED, Json(UserResponse { id })))
 }
 
+/// Creates a response which creates a user-specific __host token cookie. The token is secure, http
+/// only and utilizes the strict SameSite policy.
+///
+/// # Errors
+///
+/// This function will return an error if a cryptographic error occurs during the creation of the
+/// JWT.
 fn start_session_response(id: Uuid) -> Result<impl IntoResponse, StatusCode> {
     let token = authn::create_jwt(id)?;
 
@@ -194,12 +203,12 @@ async fn login<DS: DataStore>(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?; // DB error
                                                           // We still have to verify the password if there isn't a user with the specified E-Mail
                                                           // address to prevent timing attacks
-    let hash = match db_user.as_ref() {
-        None => "$argon2id$v=19$m=16,t=2,p=1$MVVDSUtUUThaQzh0RHRkNg$mD5KaV0QFxQzWhmVZ+5tsA",
-        Some(u) => &u.hash,
-    };
+    let hash = db_user.as_ref().map_or(
+        "$argon2id$v=19$m=16,t=2,p=1$MVVDSUtUUThaQzh0RHRkNg$mD5KaV0QFxQzWhmVZ+5tsA",
+        |u| &u.hash,
+    );
 
-    if verify_password(&user.password, &hash)? {
+    if verify_password(&user.password, hash)? {
         return match db_user {
             Some(u) => start_session_response(u.id),
             None => Err(StatusCode::UNAUTHORIZED),

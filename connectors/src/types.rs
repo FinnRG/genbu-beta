@@ -46,7 +46,7 @@ impl From<StoreUserAvatar> for Uuid {
 
 impl From<StoreUser> for User {
     fn from(val: StoreUser) -> Self {
-        User {
+        Self {
             id: val.id,
             name: val.name,
             email: val.email,
