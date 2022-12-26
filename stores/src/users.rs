@@ -1,4 +1,4 @@
-use std::{error::Error, fmt::Debug, str::FromStr};
+use std::{error::Error, fmt::Debug, ops::Deref, str::FromStr};
 
 use crate::util::{deep_into, deep_into_vec};
 use async_trait::async_trait;
@@ -97,42 +97,40 @@ pub struct UserUpdate {
     pub avatar: Option<UserAvatar>,
 }
 
+pub type SResult<T> = Result<T, UserError>;
+
 /// Main data layer abstraction for users.
 #[async_trait]
 pub trait UserStore {
     // TODO: Better error handling
     type StoreUser: Into<User>;
-    type StoreError: Into<UserError>;
 
-    async fn int_add(&mut self, user: &User) -> Result<(), Self::StoreError>;
-    async fn add(&mut self, user: &User) -> Result<(), UserError> {
+    async fn int_add(&mut self, user: &User) -> SResult<()>;
+    async fn add(&mut self, user: &User) -> SResult<()> {
         self.int_add(user).await.map_err(Into::into)
     }
 
     // TODO: Test that the delete endpoint really returns the user if it previously existed
-    async fn int_delete(&mut self, id: &Uuid) -> Result<Option<Self::StoreUser>, Self::StoreError>;
-    async fn delete(&mut self, id: &Uuid) -> Result<Option<User>, UserError> {
+    async fn int_delete(&mut self, id: &Uuid) -> SResult<Option<Self::StoreUser>>;
+    async fn delete(&mut self, id: &Uuid) -> SResult<Option<User>> {
         deep_into(self.int_delete(id).await)
     }
 
-    async fn int_get(&self, id: &Uuid) -> Result<Option<Self::StoreUser>, Self::StoreError>;
-    async fn get(&self, id: &Uuid) -> Result<Option<User>, UserError> {
+    async fn int_get(&self, id: &Uuid) -> SResult<Option<Self::StoreUser>>;
+    async fn get(&self, id: &Uuid) -> SResult<Option<User>> {
         deep_into(self.int_get(id).await)
     }
-    async fn int_get_by_email(
-        &self,
-        email: &str,
-    ) -> Result<Option<Self::StoreUser>, Self::StoreError>;
-    async fn get_by_email(&self, email: &str) -> Result<Option<User>, UserError> {
+    async fn int_get_by_email(&self, email: &str) -> SResult<Option<Self::StoreUser>>;
+    async fn get_by_email(&self, email: &str) -> SResult<Option<User>> {
         deep_into(self.int_get_by_email(email).await)
     }
 
-    async fn int_get_all(&self) -> Result<Vec<Self::StoreUser>, Self::StoreError>;
-    async fn get_all(&self) -> Result<Vec<User>, UserError> {
+    async fn int_get_all(&self) -> SResult<Vec<Self::StoreUser>>;
+    async fn get_all(&self) -> SResult<Vec<User>> {
         deep_into_vec(self.int_get_all().await)
     }
 
-    async fn update(&mut self, user_update: UserUpdate) -> Result<Option<User>, UserError>;
+    async fn update(&mut self, user_update: UserUpdate) -> SResult<Option<User>>;
 }
 
 #[cfg(test)]

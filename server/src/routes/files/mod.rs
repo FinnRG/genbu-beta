@@ -1,5 +1,5 @@
 use axum::{response::IntoResponse, Extension, Json};
-use genbu_stores::files::file_storage::{Bucket, FileStore, FileStoreError};
+use genbu_stores::files::file_storage::{Bucket, FileError, FileStore};
 use hyper::StatusCode;
 
 pub mod multipart_upload;
@@ -28,6 +28,7 @@ pub mod routes {
 // TODO: Accept any file
 #[utoipa::path(
     get,
+    tag = "files",
     path = "/api/files",
     responses(
         (status = 200, description = "Upload request is valid and accepted", body = String)
@@ -47,10 +48,10 @@ use serde_json::json;
 pub type APIResult<T> = Result<T, FileAPIError>;
 
 #[derive(Debug)]
-pub struct FileAPIError(FileStoreError);
+pub struct FileAPIError(FileError);
 
-impl From<FileStoreError> for FileAPIError {
-    fn from(value: FileStoreError) -> Self {
+impl From<FileError> for FileAPIError {
+    fn from(value: FileError) -> Self {
         Self(value)
     }
 }
@@ -58,25 +59,21 @@ impl From<FileStoreError> for FileAPIError {
 impl IntoResponse for FileAPIError {
     fn into_response(self) -> axum::response::Response {
         let (status, error_message) = match self.0 {
-            FileStoreError::FileNotFound(_) => (StatusCode::NOT_FOUND, "File not found"),
-            FileStoreError::FileIsEmpty => (StatusCode::UNPROCESSABLE_ENTITY, "File is empty"),
-            FileStoreError::FileTooLarge(_) => {
-                (StatusCode::UNPROCESSABLE_ENTITY, "File is too large")
-            }
-            FileStoreError::Connection(_) => (
+            FileError::FileNotFound(_) => (StatusCode::NOT_FOUND, "File not found"),
+            FileError::FileIsEmpty => (StatusCode::UNPROCESSABLE_ENTITY, "File is empty"),
+            FileError::FileTooLarge(_) => (StatusCode::UNPROCESSABLE_ENTITY, "File is too large"),
+            FileError::Connection(_) => (
                 StatusCode::BAD_GATEWAY,
                 "Server failed to establish connection to database",
             ),
-            FileStoreError::NameAlreadyExists(_) => {
+            FileError::NameAlreadyExists(_) => {
                 (StatusCode::CONFLICT, "File with this name already exists")
             }
-            FileStoreError::Other(_) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "Unknown internal error")
-            }
-            FileStoreError::Presigning(_) => {
+            FileError::Other(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Unknown internal error"),
+            FileError::Presigning(_) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "Error during presigning")
             }
-            FileStoreError::IOError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal IO error"),
+            FileError::IOError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal IO error"),
             _ => todo!(),
         };
 

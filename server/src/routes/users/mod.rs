@@ -150,7 +150,7 @@ fn start_session_response(id: Uuid) -> Result<impl IntoResponse, StatusCode> {
     path = "/api/register",
     request_body = NewUser,
     responses(
-        (status = 201, description = "User registered successfully", body = UserResponse,
+        (status = 200, description = "User registered successfully", body = UserResponse,
             headers(
                 ("Set-Cookie" = String, description = "Sets the JWT Cookie")
         )),
@@ -165,13 +165,25 @@ async fn register<DS: DataStore>(
     start_session_response(id)
 }
 
-#[derive(Debug, Deserialize)]
-struct LoginRequest {
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct LoginRequest {
     email: String,
     password: SecretString,
 }
 
 // TODO: Better logging
+#[utoipa::path(
+    post,
+    path = "/api/login",
+    request_body = LoginRequest,
+    responses(
+        (status = 200, description = "User registered successfully", body = UserResponse,
+            headers(
+                ("Set-Cookie" = String, description = "Sets the JWT Cookie")
+        )),
+        (status = 401, description = "Wrong credentials")
+    )
+)]
 async fn login<DS: DataStore>(
     Extension(user_store): Extension<DS>,
     Json(user): Json<LoginRequest>,
@@ -179,11 +191,19 @@ async fn login<DS: DataStore>(
     let db_user = user_store
         .get_by_email(&user.email)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)? // DB error
-        .ok_or(StatusCode::UNAUTHORIZED)?; // No user with email in DB
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?; // DB error
+                                                          // We still have to verify the password if there isn't a user with the specified E-Mail
+                                                          // address to prevent timing attacks
+    let hash = match db_user.as_ref() {
+        None => "$argon2id$v=19$m=16,t=2,p=1$MVVDSUtUUThaQzh0RHRkNg$mD5KaV0QFxQzWhmVZ+5tsA",
+        Some(u) => &u.hash,
+    };
 
-    if verify_password(&user.password, &db_user.hash)? {
-        return start_session_response(db_user.id);
+    if verify_password(&user.password, &hash)? {
+        return match db_user {
+            Some(u) => start_session_response(u.id),
+            None => Err(StatusCode::UNAUTHORIZED),
+        };
     }
     Err(StatusCode::UNAUTHORIZED)
 }

@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use genbu_stores::{
+    files::file_storage::FileError,
     stores::{DataStore, Reset, Setup},
-    users::{User, UserError, UserStore, UserUpdate},
+    users::{SResult, User, UserError, UserStore, UserUpdate},
     Uuid,
 };
 use sqlx::{migrate::MigrateDatabase, postgres::PgPoolOptions, PgPool};
@@ -15,46 +16,35 @@ pub struct PgStore {
     conn_str: String,
 }
 
-pub struct PgError(sqlx::Error);
-
-impl From<PgError> for UserError {
-    fn from(value: PgError) -> Self {
-        match &value.0 {
-            sqlx::Error::Io(_)
-            | sqlx::Error::Tls(_)
-            | sqlx::Error::Protocol(_)
-            | sqlx::Error::PoolTimedOut
-            | sqlx::Error::PoolClosed => UserError::Connection(Box::new(value.0)),
-            sqlx::Error::Database(_) => {
-                let e = value.0.as_database_error();
-                if let Some(db_err) = e {
-                    match db_err.constraint() {
-                        Some("users_email_key") => UserError::EmailAlreadyExists(String::new()),
-                        Some("users_pkey") => UserError::IDAlreadyExists(None),
-                        _ => UserError::Other(Box::new(value.0)),
-                    }
-                } else {
-                    UserError::Other(Box::new(value.0))
+fn map_sqlx_err(value: sqlx::Error) -> UserError {
+    match &value {
+        sqlx::Error::Io(_)
+        | sqlx::Error::Tls(_)
+        | sqlx::Error::Protocol(_)
+        | sqlx::Error::PoolTimedOut
+        | sqlx::Error::PoolClosed => UserError::Connection(Box::new(value)),
+        sqlx::Error::Database(_) => {
+            let e = value.as_database_error();
+            if let Some(db_err) = e {
+                match db_err.constraint() {
+                    Some("users_email_key") => UserError::EmailAlreadyExists(String::new()),
+                    Some("users_pkey") => UserError::IDAlreadyExists(None),
+                    _ => UserError::Other(Box::new(value)),
                 }
+            } else {
+                UserError::Other(Box::new(value))
             }
-            _ => UserError::Other(Box::new(value.0)),
         }
-    }
-}
-
-impl From<sqlx::Error> for PgError {
-    fn from(value: sqlx::Error) -> Self {
-        PgError(value)
+        _ => UserError::Other(Box::new(value)),
     }
 }
 
 #[async_trait]
 impl UserStore for PgStore {
     type StoreUser = StoreUser;
-    type StoreError = PgError;
 
     #[instrument]
-    async fn int_add(&mut self, user: &User) -> Result<(), PgError> {
+    async fn int_add(&mut self, user: &User) -> SResult<()> {
         let res = sqlx::query_as!(StoreUser, r#"INSERT INTO users (id, name, email, created_at, hash, avatar) VALUES ($1, $2, $3::TEXT::CITEXT, $4, $5, $6)"#,
             user.id,
             user.name,
@@ -64,58 +54,63 @@ impl UserStore for PgStore {
             user.avatar.as_ref().map(StoreUserAvatar::from).map(Into::<Uuid>::into)
         ).execute(&self.conn)
             .await
-            .map(|_| ())?;
+            .map(|_| ())
+            .map_err(map_sqlx_err)?;
         Ok(res)
     }
 
     #[instrument]
-    async fn int_delete(&mut self, id: &Uuid) -> Result<Option<StoreUser>, PgError> {
+    async fn int_delete(&mut self, id: &Uuid) -> SResult<Option<StoreUser>> {
         let res = sqlx::query_as!(
             StoreUser,
             r#"DELETE FROM users WHERE id = $1 RETURNING id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: StoreUserAvatar""#,
             id
         )
             .fetch_optional(&self.conn)
-            .await?;
+            .await
+            .map_err(map_sqlx_err)?;
         Ok(res)
     }
 
     #[instrument]
-    async fn int_get(&self, id: &Uuid) -> Result<Option<StoreUser>, PgError> {
+    async fn int_get(&self, id: &Uuid) -> SResult<Option<StoreUser>> {
         let res = sqlx::query_as!(
             StoreUser,
             r#"SELECT id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: StoreUserAvatar" FROM users WHERE id = $1"#,
             id
         )
             .fetch_optional(&self.conn)
-            .await?;
+            .await
+            .map_err(map_sqlx_err)?;
         Ok(res)
     }
 
     #[instrument]
-    async fn int_get_all(&self) -> Result<Vec<StoreUser>, PgError> {
+    async fn int_get_all(&self) -> SResult<Vec<StoreUser>> {
         let res = sqlx::query_as!(
             StoreUser,
             r#"SELECT id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: StoreUserAvatar" FROM users"#
         )
             .fetch_all(&self.conn)
-            .await?;
+            .await
+            .map_err(map_sqlx_err)?;
         Ok(res)
     }
 
     #[instrument]
-    async fn int_get_by_email(&self, email: &str) -> Result<Option<StoreUser>, PgError> {
+    async fn int_get_by_email(&self, email: &str) -> SResult<Option<StoreUser>> {
         let res = sqlx::query_as!(
             StoreUser,
             r#"SELECT id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: StoreUserAvatar" FROM users WHERE email = $1::TEXT::CITEXT"#,
             email
         )
-            .fetch_optional(&self.conn).await?;
+            .fetch_optional(&self.conn).await
+            .map_err(map_sqlx_err)?;
         Ok(res)
     }
 
     #[instrument]
-    async fn update(&mut self, _id: UserUpdate) -> Result<Option<User>, UserError> {
+    async fn update(&mut self, _id: UserUpdate) -> SResult<Option<User>> {
         todo!()
     }
 }

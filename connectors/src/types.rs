@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use genbu_stores::{
+    files::{database::UploadLease, file_storage::Bucket},
     users::{User, UserAvatar},
     OffsetDateTime, Uuid,
 };
@@ -52,6 +53,33 @@ impl From<StoreUser> for User {
             hash: val.hash,
             created_at: val.created_at,
             avatar: val.avatar.map(Into::into),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct StoreUploadLease {
+    id: Uuid,
+    owner: Uuid,
+    completed: bool,
+    size: u64,
+    created_at: OffsetDateTime,
+    expires_at: OffsetDateTime,
+    bucket: Bucket,
+    name: String,
+}
+
+impl From<StoreUploadLease> for UploadLease {
+    fn from(val: StoreUploadLease) -> Self {
+        Self {
+            id: val.id,
+            owner: val.owner,
+            completed: val.completed,
+            size: val.size,
+            created_at: val.created_at,
+            expires_at: val.expires_at,
+            bucket: val.bucket,
+            name: val.name,
         }
     }
 }

@@ -16,7 +16,7 @@ pub enum PresignError {
 
 #[derive(Debug, Error)]
 #[non_exhaustive]
-pub enum FileStoreError {
+pub enum FileError {
     #[error("unable to establish a file storage connection")]
     Connection(#[source] Box<dyn Error>),
 
@@ -63,36 +63,28 @@ impl Bucket {
     }
 }
 
+pub type SResult<T> = Result<T, FileError>;
+
 #[async_trait]
 pub trait FileStore: Clone + Sized + Send + Sync + 'static {
     fn can_presign() -> bool;
-    async fn setup(&mut self) -> Result<(), FileStoreError>;
+    async fn setup(&mut self) -> SResult<()>;
 
-    async fn upload_file(
-        &mut self,
-        bucket: Bucket,
-        name: &File,
-        name: &str,
-    ) -> Result<(), FileStoreError>;
-    async fn delete_file(&mut self, bucket: Bucket, name: &str) -> Result<(), FileStoreError>;
-    async fn get_presigned_url(&self, bucket: Bucket, name: &str)
-        -> Result<String, FileStoreError>;
-    async fn get_presigned_upload_url(
-        &self,
-        bucket: Bucket,
-        name: &str,
-    ) -> Result<String, FileStoreError>;
+    async fn upload_file(&mut self, bucket: Bucket, name: &File, name: &str) -> SResult<()>;
+    async fn delete_file(&mut self, bucket: Bucket, name: &str) -> SResult<()>;
+    async fn get_presigned_url(&self, bucket: Bucket, name: &str) -> SResult<String>;
+    async fn get_presigned_upload_url(&self, bucket: Bucket, name: &str) -> SResult<String>;
     async fn get_presigned_upload_urls(
         &self,
         bucket: Bucket,
         name: &str,
         size: usize,
         chunk_size: usize,
-    ) -> Result<(Vec<String>, String), FileStoreError>;
+    ) -> SResult<(Vec<String>, String)>;
     async fn finish_multipart_upload(
         &self,
         bucket: Bucket,
         name: &str,
         upload_id: &str,
-    ) -> Result<(), FileStoreError>;
+    ) -> SResult<()>;
 }

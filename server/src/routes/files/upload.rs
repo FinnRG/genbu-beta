@@ -9,10 +9,9 @@ use axum::{
     Extension, Json,
 };
 use genbu_stores::{
-    files::file_storage::{Bucket, FileStore, FileStoreError},
+    files::file_storage::{Bucket, FileError, FileStore},
     Uuid,
 };
-use hyper::StatusCode;
 
 use super::{multipart_upload::get_presigned_upload_urls, APIResult};
 
@@ -34,6 +33,7 @@ static MAX_FILE_SIZE: usize = 1_000_000_000;
 
 #[utoipa::path(
     post,
+    tag = "files",
     path = "/api/files/upload",
     request_body = UploadFileRequest,
     responses(
@@ -46,7 +46,7 @@ pub async fn upload_file_request<F: FileStore>(
     Json(req): Json<UploadFileRequest>,
 ) -> APIResult<Json<UploadFileResponse>> {
     if req.size > MAX_FILE_SIZE {
-        return Err(FileStoreError::FileTooLarge(req.size).into());
+        return Err(FileError::FileTooLarge(req.size).into());
     }
     if <F as FileStore>::can_presign() {
         let (uris, upload_id) = get_presigned_upload_urls(file_store, req).await?;
@@ -73,6 +73,7 @@ pub struct UploadUnsignedRequest {
 // TODO: Limit max upload size to prevent DOS
 #[utoipa::path(
     post,
+    tag = "files",
     path = "/api/files/upload/unsigned/{id}",
     request_body(content = UploadUnsignedRequest, content_type = "multipart/form-data"),
     responses(
@@ -93,10 +94,10 @@ pub async fn upload_unsigned<F: FileStore>(
     let field = multipart.next_field().await;
     let (mut file, field) = match (file, field) {
         (Ok(file), Ok(Some(field))) => (file, field),
-        (Err(e), _) => return Err(FileStoreError::IOError(e).into()),
-        (_, Err(e)) => return Err(FileStoreError::Other(Box::new(e)).into()),
+        (Err(e), _) => return Err(FileError::IOError(e).into()),
+        (_, Err(e)) => return Err(FileError::Other(Box::new(e)).into()),
         // TODO: Rethink this error message
-        (_, Ok(None)) => return Err(FileStoreError::FileIsEmpty.into()),
+        (_, Ok(None)) => return Err(FileError::FileIsEmpty.into()),
     };
     write_part_to_file(&mut file, field).await?;
     Ok(file_store
@@ -104,11 +105,11 @@ pub async fn upload_unsigned<F: FileStore>(
         .await?)
 }
 
-async fn write_part_to_file(file: &mut File, field: Field<'_>) -> Result<(), FileStoreError> {
+async fn write_part_to_file(file: &mut File, field: Field<'_>) -> Result<(), FileError> {
     let data = field
         .bytes()
         .await
-        .map_err(|e| FileStoreError::Other(Box::new(e)))?;
+        .map_err(|e| FileError::Other(Box::new(e)))?;
     file.write_all(&data)?;
     file.seek(SeekFrom::Start(0))?;
     Ok(())

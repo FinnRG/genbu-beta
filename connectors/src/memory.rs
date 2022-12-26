@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use genbu_stores::{
     stores::{DataStore, Reset, Setup},
-    users::{User, UserError, UserStore, UserUpdate},
+    users::{SResult, User, UserError, UserStore, UserUpdate},
     Uuid,
 };
 use parking_lot::Mutex;
@@ -22,9 +22,8 @@ impl MemStore {
 #[async_trait]
 impl UserStore for MemStore {
     type StoreUser = User;
-    type StoreError = UserError;
 
-    async fn int_add(&mut self, user: &User) -> Result<(), Self::StoreError> {
+    async fn int_add(&mut self, user: &User) -> SResult<()> {
         if let Ok(Some(u)) = self.get_by_email(&user.email).await {
             return Err(UserError::EmailAlreadyExists(u.email));
         }
@@ -40,21 +39,21 @@ impl UserStore for MemStore {
         }
     }
 
-    async fn int_delete(&mut self, id: &Uuid) -> Result<Option<User>, Self::StoreError> {
+    async fn int_delete(&mut self, id: &Uuid) -> SResult<Option<User>> {
         self.users
             .lock()
             .remove(id)
             .map_or_else(|| Ok(None), |user| Ok(Some(user)))
     }
 
-    async fn int_get(&self, id: &Uuid) -> Result<Option<User>, Self::StoreError> {
+    async fn int_get(&self, id: &Uuid) -> SResult<Option<User>> {
         self.users
             .lock()
             .get(id)
             .map_or_else(|| Ok(None), |user| Ok(Some(user.clone())))
     }
 
-    async fn int_get_all(&self) -> Result<Vec<User>, Self::StoreError> {
+    async fn int_get_all(&self) -> SResult<Vec<User>> {
         Ok(self
             .users
             .lock()
@@ -63,7 +62,7 @@ impl UserStore for MemStore {
             .collect::<Vec<User>>())
     }
 
-    async fn int_get_by_email(&self, email: &str) -> Result<Option<User>, Self::StoreError> {
+    async fn int_get_by_email(&self, email: &str) -> SResult<Option<User>> {
         Ok(self
             .users
             .lock()
@@ -72,7 +71,7 @@ impl UserStore for MemStore {
             .map(|(_, user)| user.clone()))
     }
 
-    async fn update(&mut self, update: UserUpdate) -> Result<Option<User>, UserError> {
+    async fn update(&mut self, update: UserUpdate) -> SResult<Option<User>> {
         let user = self.get(&update.id).await?;
         let Some(mut user) = user else {
             return Ok(None)

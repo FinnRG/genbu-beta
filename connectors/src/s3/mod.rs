@@ -14,8 +14,16 @@ use aws_sdk_s3::{
     types::{ByteStream, SdkError},
     Client, Endpoint,
 };
-use genbu_stores::files::file_storage::{Bucket, FileStore, FileStoreError, PresignError};
+use genbu_stores::{
+    files::{
+        database::{UploadLease, UploadLeaseStore, UploadLeaseStoreError},
+        file_storage::{Bucket, FileError, FileStore, PresignError},
+    },
+    OffsetDateTime, Uuid,
+};
 use thiserror::Error;
+
+use crate::types::StoreUploadLease;
 
 #[derive(Clone)]
 pub struct S3Store {
@@ -24,15 +32,15 @@ pub struct S3Store {
 
 // TODO: Move the error code into a separate file
 // TODO: Properly match sdk errors, look at aws-sdk-rust changelog for more inforation
-fn map_sdk_err<E: Error + 'static, R: Debug + 'static>(err: SdkError<E, R>) -> FileStoreError {
+fn map_sdk_err<E: Error + 'static, R: Debug + 'static>(err: SdkError<E, R>) -> FileError {
     match err {
-        SdkError::TimeoutError(_) => FileStoreError::Connection(Box::new(err)),
-        _ => FileStoreError::Other(Box::new(err)),
+        SdkError::TimeoutError(_) => FileError::Connection(Box::new(err)),
+        _ => FileError::Other(Box::new(err)),
     }
 }
 
 impl S3Store {
-    async fn create_bucket(&mut self, bucket: Bucket) -> Result<(), FileStoreError> {
+    async fn create_bucket(&mut self, bucket: Bucket) -> Result<(), FileError> {
         let resp = self
             .client
             .create_bucket()
@@ -69,7 +77,7 @@ impl FileStore for S3Store {
         true
     }
 
-    async fn setup(&mut self) -> Result<(), FileStoreError> {
+    async fn setup(&mut self) -> Result<(), FileError> {
         let buckets = vec![
             Bucket::UserFiles,
             Bucket::VideoFiles,
@@ -87,7 +95,7 @@ impl FileStore for S3Store {
         bucket: Bucket,
         file: &File,
         name: &str,
-    ) -> Result<(), FileStoreError> {
+    ) -> Result<(), FileError> {
         let mut reader = BufReader::new(file);
         let mut buffer = Vec::new();
         reader.read_to_end(&mut buffer)?;
@@ -103,7 +111,7 @@ impl FileStore for S3Store {
         res.map(|_| ()).map_err(map_sdk_err)
     }
 
-    async fn delete_file(&mut self, bucket: Bucket, name: &str) -> Result<(), FileStoreError> {
+    async fn delete_file(&mut self, bucket: Bucket, name: &str) -> Result<(), FileError> {
         let res = self
             .client
             .delete_object()
@@ -114,11 +122,7 @@ impl FileStore for S3Store {
         res.map(|_| ()).map_err(map_sdk_err)
     }
 
-    async fn get_presigned_url(
-        &self,
-        bucket: Bucket,
-        name: &str,
-    ) -> Result<String, FileStoreError> {
+    async fn get_presigned_url(&self, bucket: Bucket, name: &str) -> Result<String, FileError> {
         let expires_in = Duration::from_secs(20);
         let presigned_request = self
             .client
@@ -137,7 +141,7 @@ impl FileStore for S3Store {
         &self,
         bucket: Bucket,
         name: &str,
-    ) -> Result<String, FileStoreError> {
+    ) -> Result<String, FileError> {
         let expires_in = Duration::from_secs(900);
         let presigned_request = self
             .client
@@ -158,7 +162,7 @@ impl FileStore for S3Store {
         file: &str,
         file_size: usize,
         chunk_size: usize,
-    ) -> Result<(Vec<String>, String), FileStoreError> {
+    ) -> Result<(Vec<String>, String), FileError> {
         let mut chunk_count = (file_size / chunk_size) + 1;
         let size_of_last_chunk = file_size % chunk_size;
 
@@ -167,7 +171,7 @@ impl FileStore for S3Store {
         }
 
         if file_size == 0 {
-            return Err(FileStoreError::FileIsEmpty);
+            return Err(FileError::FileIsEmpty);
         }
 
         let mut upload_parts = Vec::new();
@@ -181,7 +185,7 @@ impl FileStore for S3Store {
             .await
             .map_err(map_sdk_err)?;
         let Some(upload_id) = multipart_upload.upload_id() else {
-            return Err(FileStoreError::Other(Box::new(NoUploadId)));
+            return Err(FileError::Other(Box::new(NoUploadId)));
         };
 
         for chunk_index in 0..chunk_count {
@@ -209,7 +213,7 @@ impl FileStore for S3Store {
         bucket: Bucket,
         file: &str,
         upload_id: &str,
-    ) -> Result<(), FileStoreError> {
+    ) -> Result<(), FileError> {
         let parts = self
             .client
             .list_parts()
@@ -219,14 +223,13 @@ impl FileStore for S3Store {
             .send()
             .await
             .map_err(map_sdk_err)?;
-        let completed_multipart_upload: CompletedMultipartUpload =
-            CompletedMultipartUpload::builder()
-                .set_parts(
-                    parts
-                        .parts()
-                        .map(|parts| parts.iter().map(part_to_completed).collect()),
-                )
-                .build();
+        let completed_multipart_upload = CompletedMultipartUpload::builder()
+            .set_parts(
+                parts
+                    .parts()
+                    .map(|parts| parts.iter().map(part_to_completed).collect()),
+            )
+            .build();
         self.client
             .complete_multipart_upload()
             .bucket(bucket.to_bucket_name())
@@ -237,6 +240,33 @@ impl FileStore for S3Store {
             .await
             .map(|_| ())
             .map_err(map_sdk_err)
+    }
+}
+
+#[async_trait]
+impl UploadLeaseStore for S3Store {
+    type StoreLease = StoreUploadLease;
+
+    async fn int_add(&mut self, lease: &UploadLease) -> Result<(), UploadLeaseStoreError> {
+        todo!()
+    }
+
+    async fn int_delete(
+        &mut self,
+        id: &Uuid,
+    ) -> Result<Option<Self::StoreLease>, UploadLeaseStoreError> {
+        todo!()
+    }
+
+    async fn int_get(&self, id: &Uuid) -> Result<Option<Self::StoreLease>, UploadLeaseStoreError> {
+        todo!()
+    }
+
+    async fn int_get_by_user(
+        &self,
+        id: &Uuid,
+    ) -> Result<Vec<Self::StoreLease>, UploadLeaseStoreError> {
+        todo!()
     }
 }
 
@@ -255,6 +285,6 @@ fn part_to_completed(p: &Part) -> CompletedPart {
 #[error("no upload id was returned from store")]
 struct NoUploadId;
 
-fn new_presign_err<U, T: Error + 'static>(e: SdkError<T>) -> Result<U, FileStoreError> {
-    Err(FileStoreError::Presigning(PresignError::Other(Box::new(e))))
+fn new_presign_err<U, T: Error + 'static>(e: SdkError<T>) -> Result<U, FileError> {
+    Err(FileError::Presigning(PresignError::Other(Box::new(e))))
 }

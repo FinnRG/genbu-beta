@@ -4,7 +4,10 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{util::deep_into, OffsetDateTime, Uuid};
+use crate::{
+    util::{deep_into, deep_into_vec},
+    OffsetDateTime, Uuid,
+};
 
 use super::file_storage::Bucket;
 
@@ -35,21 +38,33 @@ pub struct UploadLease {
 #[async_trait]
 pub trait UploadLeaseStore {
     type StoreLease: Into<UploadLease>;
-    type StoreError: Into<UploadLeaseStoreError>;
 
-    async fn int_add(&mut self, lease: &UploadLease) -> Result<(), Self::StoreError>;
+    async fn int_add(&mut self, lease: &UploadLease) -> Result<(), UploadLeaseStoreError>;
+    #[inline(always)]
     async fn add(&mut self, lease: &UploadLease) -> Result<(), UploadLeaseStoreError> {
         self.int_add(lease).await.map_err(Into::into)
     }
 
-    async fn int_delete(&mut self, id: &Uuid)
-        -> Result<Option<Self::StoreLease>, Self::StoreError>;
+    async fn int_delete(
+        &mut self,
+        id: &Uuid,
+    ) -> Result<Option<Self::StoreLease>, UploadLeaseStoreError>;
+    #[inline(always)]
     async fn delete(&mut self, id: &Uuid) -> Result<Option<UploadLease>, UploadLeaseStoreError> {
         deep_into(self.int_delete(id).await)
     }
 
-    async fn int_get(&self, id: &Uuid) -> Result<Option<Self::StoreLease>, Self::StoreError>;
+    async fn int_get(&self, id: &Uuid) -> Result<Option<Self::StoreLease>, UploadLeaseStoreError>;
+    #[inline(always)]
     async fn get(&self, id: &Uuid) -> Result<Option<UploadLease>, UploadLeaseStoreError> {
         deep_into(self.int_get(id).await)
+    }
+    async fn int_get_by_user(
+        &self,
+        id: &Uuid,
+    ) -> Result<Vec<Self::StoreLease>, UploadLeaseStoreError>;
+    #[inline(always)]
+    async fn get_by_user(&self, id: &Uuid) -> Result<Vec<UploadLease>, UploadLeaseStoreError> {
+        deep_into_vec(self.int_get_by_user(id).await)
     }
 }

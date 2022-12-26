@@ -48,6 +48,7 @@ pub async fn get_presigned_upload_urls(
 
 #[utoipa::path(
     post,
+    tag = "files",
     path = "/api/files/upload/finish",
     request_body(content = FinishUploadRequest),
     responses(
