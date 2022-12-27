@@ -7,7 +7,7 @@ use thiserror::Error;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-use super::file_storage::Bucket;
+use super::storage::Bucket;
 
 #[derive(Debug, Error)]
 pub enum UploadLeaseError {

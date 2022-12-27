@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use genbu_server::connectors::{memory::MemStore, postgres::PgStore, s3};
 use genbu_server::server::builder::GenbuServerBuilder;
-use genbu_server::stores::{files::file_storage::FileStore, DataStore};
+use genbu_server::stores::{files::storage::FileStore, DataStore};
 
 #[tokio::main]
 async fn main() -> Result<(), impl Debug> {

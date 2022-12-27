@@ -7,7 +7,7 @@ pub mod upload;
 pub mod routes {
     use axum::Router;
 
-    use crate::stores::files::file_storage::FileStore;
+    use crate::stores::files::storage::FileStore;
 
     use super::upload::upload_unsigned;
     use super::{get_presigned_url, multipart_upload::finish_upload, upload::upload_file_request};
@@ -45,7 +45,7 @@ pub async fn get_presigned_url<F: FileStore>(
 
 use serde_json::json;
 
-use crate::stores::files::file_storage::{Bucket, FileError, FileStore};
+use crate::stores::files::storage::{Bucket, FileError, FileStore};
 
 pub type APIResult<T> = Result<T, FileAPIError>;
 

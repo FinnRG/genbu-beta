@@ -9,7 +9,7 @@ use axum::{
 };
 
 use crate::stores::{
-    files::file_storage::{Bucket, FileError, FileStore},
+    files::storage::{Bucket, FileError, FileStore},
     Uuid,
 };
 

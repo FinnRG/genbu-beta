@@ -1,6 +1,6 @@
 use axum::{Extension, Json};
 
-use crate::stores::files::file_storage::{Bucket, FileStore};
+use crate::stores::files::storage::{Bucket, FileStore};
 
 use super::{upload::UploadFileRequest, APIResult};
 

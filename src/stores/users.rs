@@ -121,6 +121,7 @@ pub trait UserStore {
     async fn update(&mut self, user_update: UserUpdate) -> SResult<Option<User>>;
 }
 
+// TODO: Remove this test
 #[cfg(test)]
 mod tests {
     use oso::{Oso, PolarClass};

@@ -8,10 +8,7 @@ use axum::{
 use genbu_server::{
     connectors::{memory::MemStore, postgres::PgStore, s3},
     server::builder::GenbuServerBuilder,
-    stores::{
-        stores::{DataStore, Reset, Setup},
-        Uuid,
-    },
+    stores::{DataStore, Reset, Setup, Uuid},
 };
 use http_body::combinators::UnsyncBoxBody;
 use serde_json::json;

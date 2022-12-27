@@ -19,7 +19,7 @@ use thiserror::Error;
 use crate::stores::{
     files::{
         database::{SResult, UploadLease, UploadLeaseStore},
-        file_storage::{Bucket, FileError, FileStore, PresignError},
+        storage::{Bucket, FileError, FileStore, PresignError},
     },
     Uuid,
 };
