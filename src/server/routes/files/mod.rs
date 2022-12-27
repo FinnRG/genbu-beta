@@ -1,5 +1,4 @@
 use axum::{response::IntoResponse, Extension, Json};
-use genbu_stores::files::file_storage::{Bucket, FileError, FileStore};
 use hyper::StatusCode;
 
 pub mod multipart_upload;
@@ -7,7 +6,8 @@ pub mod upload;
 
 pub mod routes {
     use axum::Router;
-    use genbu_stores::files::file_storage::FileStore;
+
+    use crate::stores::files::file_storage::FileStore;
 
     use super::upload::upload_unsigned;
     use super::{get_presigned_url, multipart_upload::finish_upload, upload::upload_file_request};
@@ -45,6 +45,8 @@ pub async fn get_presigned_url<F: FileStore>(
 
 use serde_json::json;
 
+use crate::stores::files::file_storage::{Bucket, FileError, FileStore};
+
 pub type APIResult<T> = Result<T, FileAPIError>;
 
 #[derive(Debug)]
@@ -74,7 +76,6 @@ impl IntoResponse for FileAPIError {
                 (StatusCode::INTERNAL_SERVER_ERROR, "Error during presigning")
             }
             FileError::IOError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal IO error"),
-            _ => todo!(),
         };
 
         let body = Json(json!({ "error": error_message }));

@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
-use genbu_axum_server::builder::GenbuServerBuilder;
-use genbu_default_connectors::{memory::MemStore, postgres::PgStore, s3};
-use genbu_stores::{files::file_storage::FileStore, stores::DataStore};
+use genbu_server::connectors::{memory::MemStore, postgres::PgStore, s3};
+use genbu_server::server::builder::GenbuServerBuilder;
+use genbu_server::stores::{files::file_storage::FileStore, stores::DataStore};
 
 #[tokio::main]
 async fn main() -> Result<(), impl Debug> {

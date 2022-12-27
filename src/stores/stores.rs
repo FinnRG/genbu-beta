@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use std::error::Error;
 
-use crate::users::UserStore;
+use super::users::UserStore;
 
 #[async_trait]
 pub trait DataStore: Sized + UserStore + Reset + Setup + Send + Sync + Clone + 'static {

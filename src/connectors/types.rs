@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use genbu_stores::{
+use crate::stores::{
     files::{database::UploadLease, file_storage::Bucket},
     users::{User, UserAvatar},
     OffsetDateTime, Uuid,

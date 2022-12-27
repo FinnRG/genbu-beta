@@ -10,17 +10,19 @@ use axum::{
 };
 use axum_extra::extract::cookie::{Cookie, SameSite};
 use genbu_auth::authn::{self, verify_password};
-use genbu_stores::{
-    stores::DataStore,
-    users::{User, UserAvatar, UserError},
-    Uuid,
-};
 use hyper::{header, StatusCode};
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::middlewares::auth::auth;
+use crate::{
+    server::middlewares::auth::auth,
+    stores::{
+        stores::DataStore,
+        users::{User, UserAvatar, UserError},
+        Uuid,
+    },
+};
 
 pub fn router<DS: DataStore>() -> Router {
     Router::new()

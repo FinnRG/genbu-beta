@@ -7,7 +7,8 @@ use axum::{
     extract::{multipart::Field, Multipart, Path},
     Extension, Json,
 };
-use genbu_stores::{
+
+use crate::stores::{
     files::file_storage::{Bucket, FileError, FileStore},
     Uuid,
 };

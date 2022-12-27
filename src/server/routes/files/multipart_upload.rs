@@ -1,5 +1,6 @@
 use axum::{Extension, Json};
-use genbu_stores::files::file_storage::{Bucket, FileStore};
+
+use crate::stores::files::file_storage::{Bucket, FileStore};
 
 use super::{upload::UploadFileRequest, APIResult};
 

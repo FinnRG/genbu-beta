@@ -876,21 +876,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "futures"
-version = "0.3.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38390104763dc37a5145a53c29c63c1290b5d316d6086ec32c293f6736051bb0"
-dependencies = [
- "futures-channel",
- "futures-core",
- "futures-executor",
- "futures-io",
- "futures-sink",
- "futures-task",
- "futures-util",
-]
-
-[[package]]
 name = "futures-channel"
 version = "0.3.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -907,17 +892,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04909a7a7e4633ae6c4a9ab280aeb86da1236243a77b694a49eacd659a4bd3ac"
 
 [[package]]
-name = "futures-executor"
-version = "0.3.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7acc85df6714c176ab5edf386123fafe217be88c0840ec11f199441134a074e2"
-dependencies = [
- "futures-core",
- "futures-task",
- "futures-util",
-]
-
-[[package]]
 name = "futures-intrusive"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -927,12 +901,6 @@ dependencies = [
  "lock_api",
  "parking_lot 0.11.2",
 ]
-
-[[package]]
-name = "futures-io"
-version = "0.3.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00f5fb52a06bdcadeb54e8d3671f8888a39697dcb0b81b23b55174030427f4eb"
 
 [[package]]
 name = "futures-macro"
@@ -963,26 +931,13 @@ version = "0.3.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "197676987abd2f9cadff84926f410af1c183608d36641465df73ae8211dc65d6"
 dependencies = [
- "futures-channel",
  "futures-core",
- "futures-io",
  "futures-macro",
  "futures-sink",
  "futures-task",
- "memchr",
  "pin-project-lite",
  "pin-utils",
  "slab",
-]
-
-[[package]]
-name = "genbu"
-version = "0.1.0"
-dependencies = [
- "genbu-axum-server",
- "genbu-default-connectors",
- "genbu-stores",
- "tokio",
 ]
 
 [[package]]
@@ -990,7 +945,6 @@ name = "genbu-auth"
 version = "0.1.0"
 dependencies = [
  "argon2",
- "genbu-stores",
  "http",
  "jsonwebtoken",
  "password-hash",
@@ -1001,75 +955,40 @@ dependencies = [
  "time",
  "tracing",
  "unicode-normalization",
+ "uuid",
 ]
 
 [[package]]
-name = "genbu-axum-server"
-version = "0.1.0"
-dependencies = [
- "axum",
- "axum-extra",
- "genbu-auth",
- "genbu-stores",
- "hyper",
- "secrecy",
- "serde",
- "serde_json",
- "tempfile",
- "time",
- "tower",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "utoipa",
- "utoipa-swagger-ui",
-]
-
-[[package]]
-name = "genbu-default-connectors"
+name = "genbu-server"
 version = "0.1.0"
 dependencies = [
  "async-trait",
  "aws-config",
  "aws-sdk-s3",
  "aws-types",
- "genbu-stores",
- "http",
- "parking_lot 0.12.1",
- "serde",
- "sqlx",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "genbu-stores"
-version = "0.1.0"
-dependencies = [
- "async-trait",
+ "axum",
+ "axum-extra",
  "bytes",
+ "genbu-auth",
+ "http",
+ "hyper",
  "oso",
+ "parking_lot 0.12.1",
+ "secrecy",
  "serde",
+ "serde_json",
+ "sqlx",
+ "tempfile",
  "thiserror",
  "time",
- "utoipa",
- "uuid",
-]
-
-[[package]]
-name = "genbu-tests"
-version = "0.1.0"
-dependencies = [
- "axum",
- "futures",
- "genbu-axum-server",
- "genbu-default-connectors",
- "genbu-stores",
- "http-body",
- "serde_json",
  "tokio",
  "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "uuid",
 ]
 
 [[package]]

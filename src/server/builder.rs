@@ -1,7 +1,7 @@
 use std::iter::once;
 
+use crate::stores::{files::file_storage::FileStore, stores::DataStore};
 use axum::{Extension, Router, Server};
-use genbu_stores::{files::file_storage::FileStore, stores::DataStore};
 use hyper::header;
 use tower::ServiceBuilder;
 use tower_http::{
@@ -10,7 +10,7 @@ use tower_http::{
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::{
+use super::{
     apidoc::ApiDoc,
     routes::{files, users},
 };

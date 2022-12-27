@@ -4,7 +4,8 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{OffsetDateTime, Uuid};
+use time::OffsetDateTime;
+use uuid::Uuid;
 
 use super::file_storage::Bucket;
 

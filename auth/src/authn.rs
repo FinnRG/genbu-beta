@@ -29,7 +29,6 @@
 use std::ops::Add;
 
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
-use genbu_stores::Uuid;
 use jsonwebtoken::errors::{Error as ExtJWTError, ErrorKind as ExtJWTErrorKind};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation};
 use password_hash::SaltString;
@@ -39,6 +38,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use time::{ext::NumericalDuration, OffsetDateTime};
 use unicode_normalization::UnicodeNormalization;
+use uuid::Uuid;
 
 #[derive(Debug, Error)]
 pub enum HashError {
@@ -197,9 +197,7 @@ impl From<JWTError> for StatusCode {
     fn from(value: JWTError) -> Self {
         match value.kind {
             JWTErrorKind::Invalid => Self::UNAUTHORIZED,
-            JWTErrorKind::Internal | JWTErrorKind::Configuration => {
-                Self::INTERNAL_SERVER_ERROR
-            }
+            JWTErrorKind::Internal | JWTErrorKind::Configuration => Self::INTERNAL_SERVER_ERROR,
         }
     }
 }

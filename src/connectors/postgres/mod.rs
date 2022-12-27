@@ -1,13 +1,15 @@
 use async_trait::async_trait;
-use genbu_stores::{
-    stores::{DataStore, Reset, Setup},
-    users::{SResult, User, UserError, UserStore, UserUpdate},
-    Uuid,
-};
 use sqlx::{migrate::MigrateDatabase, postgres::PgPoolOptions, PgPool};
 use tracing::instrument;
 
-use crate::types::{StoreUser, StoreUserAvatar};
+use crate::{
+    connectors::types::{StoreUser, StoreUserAvatar},
+    stores::{
+        stores::{DataStore, Reset, Setup},
+        users::{SResult, User, UserError, UserStore, UserUpdate},
+        Uuid,
+    },
+};
 
 #[derive(Clone, Debug)]
 pub struct PgStore {

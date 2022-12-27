@@ -7,11 +7,9 @@ use thiserror::Error;
 use time::{serde::iso8601, OffsetDateTime};
 use uuid::{Error as UuidError, Uuid};
 
-#[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 
-#[derive(Clone, Debug, PolarClass, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[derive(Clone, Debug, PolarClass, Serialize, Deserialize, ToSchema)]
 pub struct User {
     #[polar(attribute)]
     pub id: Uuid,
@@ -38,8 +36,7 @@ impl User {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct UserAvatar(Uuid);
 
 impl UserAvatar {
@@ -119,10 +116,9 @@ pub trait UserStore {
 mod tests {
     use oso::{Oso, PolarClass};
 
-    use crate::{
-        users::{User, UserAvatar},
-        Uuid,
-    };
+    use crate::stores::Uuid;
+
+    use super::{User, UserAvatar};
 
     #[test]
     fn test_oso() -> Result<(), Box<dyn std::error::Error>> {

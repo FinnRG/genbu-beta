@@ -1,4 +1,4 @@
-use crate::routes::{
+use crate::server::routes::{
     files::{
         self,
         multipart_upload::FinishUploadRequest,
@@ -6,7 +6,7 @@ use crate::routes::{
     },
     users::{self, LoginRequest, NewUser, UserResponse},
 };
-use genbu_stores::users::{User, UserAvatar};
+use crate::stores::users::{User, UserAvatar};
 use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
     Modify, OpenApi,

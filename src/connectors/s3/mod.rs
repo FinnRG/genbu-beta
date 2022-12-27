@@ -14,14 +14,15 @@ use aws_sdk_s3::{
     types::{ByteStream, SdkError},
     Client, Endpoint,
 };
-use genbu_stores::{
+use thiserror::Error;
+
+use crate::stores::{
     files::{
         database::{SResult, UploadLease, UploadLeaseStore},
         file_storage::{Bucket, FileError, FileStore, PresignError},
     },
     Uuid,
 };
-use thiserror::Error;
 
 #[derive(Clone)]
 pub struct S3Store {
