@@ -3,7 +3,7 @@ use parking_lot::Mutex;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::stores::{
-    stores::{DataStore, Reset, Setup},
+    DataStore, Reset, Setup,
     users::{SResult, User, UserError, UserStore, UserUpdate},
     Uuid,
 };

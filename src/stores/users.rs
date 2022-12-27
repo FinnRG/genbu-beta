@@ -1,4 +1,4 @@
-use std::{error::Error, fmt::Debug, str::FromStr};
+use std::{error::Error, fmt::Debug, str::FromStr, ops::Deref};
 
 use async_trait::async_trait;
 use oso::PolarClass;
@@ -36,7 +36,8 @@ impl User {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, ToSchema, sqlx::Type)]
+#[sqlx(transparent)]
 pub struct UserAvatar(Uuid);
 
 impl UserAvatar {
@@ -48,6 +49,14 @@ impl UserAvatar {
     #[must_use]
     pub const fn id(&self) -> Uuid {
         self.0
+    }
+}
+
+impl Deref for UserAvatar {
+    type Target = Uuid;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

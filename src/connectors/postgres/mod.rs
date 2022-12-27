@@ -1,15 +1,14 @@
+use std::ops::Deref;
+
 use async_trait::async_trait;
 use sqlx::{migrate::MigrateDatabase, postgres::PgPoolOptions, PgPool};
 use tracing::instrument;
 
-use crate::{
-    connectors::types::{StoreUser, StoreUserAvatar},
-    stores::{
-        stores::{DataStore, Reset, Setup},
-        users::{SResult, User, UserError, UserStore, UserUpdate},
+use crate::stores::{
+        DataStore, Reset, Setup,
+        users::{SResult, User, UserAvatar, UserError, UserStore, UserUpdate},
         Uuid,
-    },
-};
+    };
 
 #[derive(Clone, Debug)]
 pub struct PgStore {
@@ -44,13 +43,13 @@ fn map_sqlx_err(value: sqlx::Error) -> UserError {
 impl UserStore for PgStore {
     #[instrument]
     async fn add(&mut self, user: &User) -> SResult<()> {
-        let res = sqlx::query_as!(StoreUser, r#"INSERT INTO users (id, name, email, created_at, hash, avatar) VALUES ($1, $2, $3::TEXT::CITEXT, $4, $5, $6)"#,
+        let res = sqlx::query_as!(User, r#"INSERT INTO users (id, name, email, created_at, hash, avatar) VALUES ($1, $2, $3::TEXT::CITEXT, $4, $5, $6)"#,
             user.id,
             user.name,
             user.email,
             user.created_at,
             user.hash,
-            user.avatar.as_ref().map(StoreUserAvatar::from).map(Into::<Uuid>::into)
+            user.avatar.as_ref().map(Deref::deref)
         ).execute(&self.conn)
             .await
             .map(|_| ())
@@ -61,8 +60,8 @@ impl UserStore for PgStore {
     #[instrument]
     async fn delete(&mut self, id: &Uuid) -> SResult<Option<User>> {
         let res = sqlx::query_as!(
-            StoreUser,
-            r#"DELETE FROM users WHERE id = $1 RETURNING id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: StoreUserAvatar""#,
+            User,
+            r#"DELETE FROM users WHERE id = $1 RETURNING id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: UserAvatar""#,
             id
         )
             .fetch_optional(&self.conn)
@@ -75,8 +74,8 @@ impl UserStore for PgStore {
     #[instrument]
     async fn get(&self, id: &Uuid) -> SResult<Option<User>> {
         let res = sqlx::query_as!(
-            StoreUser,
-            r#"SELECT id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: StoreUserAvatar" FROM users WHERE id = $1"#,
+            User,
+            r#"SELECT id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: UserAvatar" FROM users WHERE id = $1"#,
             id
         )
             .fetch_optional(&self.conn)
@@ -89,8 +88,8 @@ impl UserStore for PgStore {
     #[instrument]
     async fn get_all(&self) -> SResult<Vec<User>> {
         let res = sqlx::query_as!(
-            StoreUser,
-            r#"SELECT id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: StoreUserAvatar" FROM users"#
+            User,
+            r#"SELECT id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: UserAvatar" FROM users"#
         )
             .fetch_all(&self.conn)
             .await
@@ -104,13 +103,12 @@ impl UserStore for PgStore {
     #[instrument]
     async fn get_by_email(&self, email: &str) -> SResult<Option<User>> {
         let res = sqlx::query_as!(
-            StoreUser,
-            r#"SELECT id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: StoreUserAvatar" FROM users WHERE email = $1::TEXT::CITEXT"#,
+            User,
+            r#"SELECT id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: UserAvatar" FROM users WHERE email = $1::TEXT::CITEXT"#,
             email
         )
             .fetch_optional(&self.conn).await
-            .map_err(map_sqlx_err)?
-            .map(Into::into);
+            .map_err(map_sqlx_err)?;
         Ok(res)
     }
 

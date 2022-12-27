@@ -18,7 +18,7 @@ use utoipa::ToSchema;
 use crate::{
     server::middlewares::auth::auth,
     stores::{
-        stores::DataStore,
+        DataStore,
         users::{User, UserAvatar, UserError},
         Uuid,
     },
