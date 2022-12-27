@@ -1,5 +1,5 @@
 use axum::http::{header, Request, StatusCode};
-use genbu_stores::Uuid;
+use genbu_server::stores::Uuid;
 use serde_json::{json, Value};
 
 mod common;

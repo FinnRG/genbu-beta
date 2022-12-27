@@ -39,3 +39,6 @@ production = ["genbu-auth/production", "axum/http2", "tracing-subscriber/parking
 [[bin]]
 name = "genbu"
 path = "src/main.rs"
+
+[dev-dependencies]
+http-body = "0.4.5"

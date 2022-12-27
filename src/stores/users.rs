@@ -124,7 +124,7 @@ mod tests {
     fn test_oso() -> Result<(), Box<dyn std::error::Error>> {
         let mut oso = Oso::new();
 
-        dbg!(oso.load_files(vec!["src/test.polar"]))?;
+        dbg!(oso.load_files(vec!["src/stores/test.polar"]))?;
         oso.register_class(Uuid::get_polar_class())?;
         oso.register_class(User::get_polar_class())?;
 
