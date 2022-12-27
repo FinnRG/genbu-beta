@@ -18,9 +18,8 @@ use utoipa::ToSchema;
 use crate::{
     server::middlewares::auth::auth,
     stores::{
-        DataStore,
         users::{User, UserAvatar, UserError},
-        Uuid,
+        DataStore, Uuid,
     },
 };
 
@@ -205,18 +204,22 @@ async fn login<DS: DataStore>(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?; // DB error
                                                           // We still have to verify the password if there isn't a user with the specified E-Mail
                                                           // address to prevent timing attacks
-    let hash = db_user.as_ref().map_or(
-        "$argon2id$v=19$m=16,t=2,p=1$MVVDSUtUUThaQzh0RHRkNg$mD5KaV0QFxQzWhmVZ+5tsA",
-        |u| &u.hash,
-    );
+    tokio::task::spawn_blocking(move || {
+        let hash = db_user.as_ref().map_or(
+            "$argon2id$v=19$m=16,t=2,p=1$MVVDSUtUUThaQzh0RHRkNg$mD5KaV0QFxQzWhmVZ+5tsA",
+            |u| &u.hash,
+        );
 
-    if verify_password(&user.password, hash)? {
-        return match db_user {
-            Some(u) => start_session_response(u.id),
-            None => Err(StatusCode::UNAUTHORIZED),
-        };
-    }
-    Err(StatusCode::UNAUTHORIZED)
+        if verify_password(&user.password, hash)? {
+            return match db_user {
+                Some(u) => start_session_response(u.id),
+                None => Err(StatusCode::UNAUTHORIZED),
+            };
+        }
+        Err(StatusCode::UNAUTHORIZED)
+    })
+    .await
+    .expect("panic in verifying password hash")
 }
 
 // TODO: Better logging

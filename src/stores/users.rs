@@ -1,15 +1,14 @@
-use std::{error::Error, fmt::Debug, str::FromStr, ops::Deref};
+use std::{error::Error, fmt::Debug, ops::Deref, str::FromStr};
 
 use async_trait::async_trait;
 use oso::PolarClass;
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use time::{serde::iso8601, OffsetDateTime};
 use uuid::{Error as UuidError, Uuid};
 
 use utoipa::ToSchema;
 
-#[derive(Clone, Debug, PolarClass, Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Debug, PolarClass, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct User {
     #[polar(attribute)]
     pub id: Uuid,
@@ -36,7 +35,9 @@ impl User {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, ToSchema, sqlx::Type)]
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, sqlx::Type,
+)]
 #[sqlx(transparent)]
 pub struct UserAvatar(Uuid);
 
@@ -95,7 +96,8 @@ pub enum UserError {
     Infallible,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct UserUpdate {
     pub id: Uuid,
     pub name: Option<String>,

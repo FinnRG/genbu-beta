@@ -3,9 +3,8 @@ use parking_lot::Mutex;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::stores::{
-    DataStore, Reset, Setup,
     users::{SResult, User, UserError, UserStore, UserUpdate},
-    Uuid,
+    DataStore, Reset, Setup, Uuid,
 };
 
 #[derive(Clone, Default)]

@@ -9,7 +9,9 @@ pub type UuidError = uuid::Error;
 pub type OffsetDateTime = time::OffsetDateTime;
 
 #[async_trait]
-pub trait DataStore: Sized + users::UserStore + Reset + Setup + Send + Sync + Clone + 'static {
+pub trait DataStore:
+    Sized + users::UserStore + Reset + Setup + Send + Sync + Clone + 'static
+{
     // TODO: Replace this with server config
     async fn new(arg: String) -> Result<Self, Box<dyn Error>>;
 }

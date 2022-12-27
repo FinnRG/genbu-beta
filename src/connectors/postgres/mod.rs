@@ -5,10 +5,9 @@ use sqlx::{migrate::MigrateDatabase, postgres::PgPoolOptions, PgPool};
 use tracing::instrument;
 
 use crate::stores::{
-        DataStore, Reset, Setup,
-        users::{SResult, User, UserAvatar, UserError, UserStore, UserUpdate},
-        Uuid,
-    };
+    users::{SResult, User, UserAvatar, UserError, UserStore, UserUpdate},
+    DataStore, Reset, Setup, Uuid,
+};
 
 #[derive(Clone, Debug)]
 pub struct PgStore {
@@ -43,7 +42,7 @@ fn map_sqlx_err(value: sqlx::Error) -> UserError {
 impl UserStore for PgStore {
     #[instrument]
     async fn add(&mut self, user: &User) -> SResult<()> {
-        let res = sqlx::query_as!(User, r#"INSERT INTO users (id, name, email, created_at, hash, avatar) VALUES ($1, $2, $3::TEXT::CITEXT, $4, $5, $6)"#,
+        let res = sqlx::query_as!(User, r#"INSERT INTO users (id, name, email, created_at, hash, avatar) VALUES ($1, $2, $3, $4, $5, $6)"#,
             user.id,
             user.name,
             user.email,
@@ -66,8 +65,7 @@ impl UserStore for PgStore {
         )
             .fetch_optional(&self.conn)
             .await
-            .map_err(map_sqlx_err)?
-            .map(Into::into);
+            .map_err(map_sqlx_err)?;
         Ok(res)
     }
 
@@ -80,8 +78,7 @@ impl UserStore for PgStore {
         )
             .fetch_optional(&self.conn)
             .await
-            .map_err(map_sqlx_err)?
-            .map(Into::into);
+            .map_err(map_sqlx_err)?;
         Ok(res)
     }
 
@@ -93,10 +90,7 @@ impl UserStore for PgStore {
         )
             .fetch_all(&self.conn)
             .await
-            .map_err(map_sqlx_err)?
-            .into_iter()
-            .map(Into::into)
-            .collect();
+            .map_err(map_sqlx_err)?;
         Ok(res)
     }
 
@@ -104,7 +98,7 @@ impl UserStore for PgStore {
     async fn get_by_email(&self, email: &str) -> SResult<Option<User>> {
         let res = sqlx::query_as!(
             User,
-            r#"SELECT id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: UserAvatar" FROM users WHERE email = $1::TEXT::CITEXT"#,
+            r#"SELECT id,name,email,hash,created_at,avatar as "avatar: UserAvatar" FROM users WHERE email = $1"#,
             email
         )
             .fetch_optional(&self.conn).await

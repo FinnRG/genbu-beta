@@ -9,6 +9,12 @@ use uuid::Uuid;
 
 use super::storage::Bucket;
 
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema, sqlx::Type,
+)]
+#[sqlx(transparent)]
+pub struct LeaseID(Uuid);
+
 #[derive(Debug, Error)]
 pub enum UploadLeaseError {
     #[error("unable to establish a file storage connection")]
@@ -23,7 +29,7 @@ pub enum UploadLeaseError {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UploadLease {
-    pub id: Uuid,
+    pub id: LeaseID,
     pub owner: Uuid,
     pub completed: bool,
     pub size: u64,

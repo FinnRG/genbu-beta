@@ -6,4 +6,4 @@ podman run -itd \
     -e POSTGRES_PASSWORD=strong_password \
     -e POSTGRES_DB=genbu \
     -p 5432:5432 \
-    postgres:11;
+    postgres:15;
