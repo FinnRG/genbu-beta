@@ -47,20 +47,11 @@ use serde_json::json;
 
 use crate::stores::files::storage::{Bucket, FileError, FileStore};
 
-pub type APIResult<T> = Result<T, FileAPIError>;
+pub type APIResult<T> = Result<T, FileError>;
 
-#[derive(Debug)]
-pub struct FileAPIError(FileError);
-
-impl From<FileError> for FileAPIError {
-    fn from(value: FileError) -> Self {
-        Self(value)
-    }
-}
-
-impl IntoResponse for FileAPIError {
+impl IntoResponse for FileError {
     fn into_response(self) -> axum::response::Response {
-        let (status, error_message) = match self.0 {
+        let (status, error_message) = match self {
             FileError::FileNotFound(_) => (StatusCode::NOT_FOUND, "File not found"),
             FileError::FileIsEmpty => (StatusCode::UNPROCESSABLE_ENTITY, "File is empty"),
             FileError::FileTooLarge(_) => (StatusCode::UNPROCESSABLE_ENTITY, "File is too large"),

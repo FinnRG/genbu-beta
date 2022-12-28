@@ -107,8 +107,25 @@ impl UserStore for PgStore {
     }
 
     #[instrument]
-    async fn update(&mut self, _id: UserUpdate) -> SResult<Option<User>> {
-        todo!()
+    async fn update(&mut self, id: &Uuid, update: UserUpdate) -> SResult<Option<User>> {
+        sqlx::query_as!(
+            User,
+            r#"
+                UPDATE "users"
+                SET email = coalesce($1, "users".email),
+                    avatar = coalesce($2, "users".avatar),
+                    name = coalesce($3, "users".name)
+                WHERE id = $4
+                RETURNING id,name,email,hash,created_at,avatar as "avatar: UserAvatar"
+            "#,
+            update.email,
+            update.avatar.as_ref().map(Deref::deref),
+            update.name,
+            id
+        )
+        .fetch_optional(&self.conn)
+        .await
+        .map_err(map_sqlx_err)
     }
 }
 

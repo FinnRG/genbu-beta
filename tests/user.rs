@@ -1,5 +1,5 @@
 use axum::http::{header, Request, StatusCode};
-use genbu_server::stores::Uuid;
+use genbu_server::stores::{users::User, Uuid};
 use serde_json::{json, Value};
 
 mod common;
@@ -139,11 +139,15 @@ async fn require_authn() {
     let add_user = client
         .request(Request::post("/api/user").empty_body())
         .await;
+    let patch_user = client
+        .request(Request::patch("/api/user/132").empty_body())
+        .await;
     assert_eq!(get_user_all.status(), StatusCode::UNAUTHORIZED);
     assert_eq!(get_spec_user.status(), StatusCode::UNAUTHORIZED);
     assert_eq!(get_unspec_user.status(), StatusCode::UNAUTHORIZED);
     assert_eq!(delete_spec_user.status(), StatusCode::UNAUTHORIZED);
     assert_eq!(add_user.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(patch_user.status(), StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
@@ -226,4 +230,61 @@ async fn delete_user() {
     };
 
     assert_eq!(content.len(), 0);
+}
+
+#[tokio::test]
+async fn update_user() {
+    let mut client = TestClient::new().await;
+    client.register_default().await;
+    let mut get_user_req = client
+        .request(Request::get("/api/user/all").empty_body())
+        .await;
+    let users: Vec<User> = serde_json::from_value(response_json(&mut get_user_req).await).unwrap();
+    let user_id = users[0].id;
+
+    // Response should contain the updated user
+    let mut update_user_req = client
+        .request(
+            Request::patch("/api/user/".to_owned() + &user_id.to_string()).json(json! {{
+                "name": "UpdatedName"
+            }}),
+        )
+        .await;
+    let users: User = serde_json::from_value(response_json(&mut update_user_req).await).unwrap();
+    assert_eq!(users.name, "UpdatedName");
+
+    // Get all should return the updated user
+    let mut get_user_req = client
+        .request(Request::get("/api/user/all").empty_body())
+        .await;
+    let users: Vec<User> = serde_json::from_value(response_json(&mut get_user_req).await).unwrap();
+    assert_eq!(users[0].name, "UpdatedName");
+}
+
+#[tokio::test]
+async fn restrict_update() {
+    let mut client = TestClient::new().await;
+    client.register_default().await;
+    let mut get_user_req = client
+        .request(Request::get("/api/user/all").empty_body())
+        .await;
+    let users: Vec<User> = serde_json::from_value(response_json(&mut get_user_req).await).unwrap();
+    let user_id = users[0].id;
+
+    let new_id = Uuid::new_v4();
+    // Response should contain the updated user
+    client
+        .request(
+            Request::patch("/api/user/".to_owned() + &user_id.to_string()).json(json! {{
+                "id": &new_id.to_string()
+            }}),
+        )
+        .await;
+
+    // Get all should return the updated user
+    let mut get_user_req = client
+        .request(Request::get("/api/user/all").empty_body())
+        .await;
+    let users: Vec<User> = serde_json::from_value(response_json(&mut get_user_req).await).unwrap();
+    assert_ne!(users[0].id, new_id);
 }

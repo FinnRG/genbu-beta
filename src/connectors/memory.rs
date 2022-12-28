@@ -69,8 +69,8 @@ impl UserStore for MemStore {
             .map(|(_, user)| user.clone()))
     }
 
-    async fn update(&mut self, update: UserUpdate) -> SResult<Option<User>> {
-        let user = self.get(&update.id).await?;
+    async fn update(&mut self, id: &Uuid, update: UserUpdate) -> SResult<Option<User>> {
+        let user = self.get(id).await?;
         let Some(mut user) = user else {
             return Ok(None)
         };

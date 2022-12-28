@@ -96,11 +96,11 @@ pub enum UserError {
     Infallible,
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct UserUpdate {
-    pub id: Uuid,
     pub name: Option<String>,
+    pub email: Option<String>,
     pub avatar: Option<UserAvatar>,
 }
 
@@ -120,7 +120,7 @@ pub trait UserStore {
 
     async fn get_all(&self) -> SResult<Vec<User>>;
 
-    async fn update(&mut self, user_update: UserUpdate) -> SResult<Option<User>>;
+    async fn update(&mut self, id: &Uuid, update: UserUpdate) -> SResult<Option<User>>;
 }
 
 // TODO: Remove this test
