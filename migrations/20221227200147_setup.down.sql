@@ -1,3 +1,3 @@
-DROP FUNCTION trigger_updated_at;
-DROP FUNCTION set_updated_at;
-DROP COLLATION case_insensitive;
+drop function trigger_updated_at;
+drop function set_updated_at;
+drop collation case_insensitive;

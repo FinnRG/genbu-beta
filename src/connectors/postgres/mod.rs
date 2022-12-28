@@ -15,26 +15,28 @@ pub struct PgStore {
     conn_str: String,
 }
 
-fn map_sqlx_err(value: sqlx::Error) -> UserError {
-    match &value {
-        sqlx::Error::Io(_)
-        | sqlx::Error::Tls(_)
-        | sqlx::Error::Protocol(_)
-        | sqlx::Error::PoolTimedOut
-        | sqlx::Error::PoolClosed => UserError::Connection(Box::new(value)),
-        sqlx::Error::Database(_) => {
-            let e = value.as_database_error();
-            if let Some(db_err) = e {
-                match db_err.constraint() {
-                    Some("users_email_key") => UserError::EmailAlreadyExists(String::new()),
-                    Some("users_pkey") => UserError::IDAlreadyExists(None),
-                    _ => UserError::Other(Box::new(value)),
+impl From<sqlx::Error> for UserError {
+    fn from(value: sqlx::Error) -> Self {
+        match &value {
+            sqlx::Error::Io(_)
+            | sqlx::Error::Tls(_)
+            | sqlx::Error::Protocol(_)
+            | sqlx::Error::PoolTimedOut
+            | sqlx::Error::PoolClosed => UserError::Connection(Box::new(value)),
+            sqlx::Error::Database(_) => {
+                let e = value.as_database_error();
+                if let Some(db_err) = e {
+                    match db_err.constraint() {
+                        Some("user_email_key") => UserError::EmailAlreadyExists(String::new()),
+                        Some("user_pkey") => UserError::IDAlreadyExists(None),
+                        _ => UserError::Other(Box::new(value)),
+                    }
+                } else {
+                    UserError::Other(Box::new(value))
                 }
-            } else {
-                UserError::Other(Box::new(value))
             }
+            _ => UserError::Other(Box::new(value)),
         }
-        _ => UserError::Other(Box::new(value)),
     }
 }
 
@@ -42,7 +44,7 @@ fn map_sqlx_err(value: sqlx::Error) -> UserError {
 impl UserStore for PgStore {
     #[instrument]
     async fn add(&mut self, user: &User) -> SResult<()> {
-        let res = sqlx::query_as!(User, r#"INSERT INTO users (id, name, email, created_at, hash, avatar) VALUES ($1, $2, $3, $4, $5, $6)"#,
+        let res = sqlx::query_as!(User, r#"INSERT INTO "user" (id, name, email, created_at, hash, avatar) VALUES ($1, $2, $3, $4, $5, $6)"#,
             user.id,
             user.name,
             user.email,
@@ -51,8 +53,7 @@ impl UserStore for PgStore {
             user.avatar.as_ref().map(Deref::deref)
         ).execute(&self.conn)
             .await
-            .map(|_| ())
-            .map_err(map_sqlx_err)?;
+            .map(|_| ())?;
         Ok(res)
     }
 
@@ -60,12 +61,11 @@ impl UserStore for PgStore {
     async fn delete(&mut self, id: &Uuid) -> SResult<Option<User>> {
         let res = sqlx::query_as!(
             User,
-            r#"DELETE FROM users WHERE id = $1 RETURNING id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: UserAvatar""#,
+            r#"DELETE FROM "user" WHERE id = $1 RETURNING id,name,email,created_at,hash,avatar as "avatar: UserAvatar""#,
             id
         )
             .fetch_optional(&self.conn)
-            .await
-            .map_err(map_sqlx_err)?;
+            .await?;
         Ok(res)
     }
 
@@ -73,12 +73,11 @@ impl UserStore for PgStore {
     async fn get(&self, id: &Uuid) -> SResult<Option<User>> {
         let res = sqlx::query_as!(
             User,
-            r#"SELECT id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: UserAvatar" FROM users WHERE id = $1"#,
+            r#"SELECT id,name,email,created_at,hash,avatar as "avatar: UserAvatar" FROM "user" WHERE id = $1"#,
             id
         )
             .fetch_optional(&self.conn)
-            .await
-            .map_err(map_sqlx_err)?;
+            .await?;
         Ok(res)
     }
 
@@ -86,11 +85,10 @@ impl UserStore for PgStore {
     async fn get_all(&self) -> SResult<Vec<User>> {
         let res = sqlx::query_as!(
             User,
-            r#"SELECT id,name,email::TEXT as "email!",created_at,hash,avatar as "avatar: UserAvatar" FROM users"#
+            r#"SELECT id,name,email,created_at,hash,avatar as "avatar: UserAvatar" FROM "user""#
         )
-            .fetch_all(&self.conn)
-            .await
-            .map_err(map_sqlx_err)?;
+        .fetch_all(&self.conn)
+        .await?;
         Ok(res)
     }
 
@@ -98,23 +96,22 @@ impl UserStore for PgStore {
     async fn get_by_email(&self, email: &str) -> SResult<Option<User>> {
         let res = sqlx::query_as!(
             User,
-            r#"SELECT id,name,email,hash,created_at,avatar as "avatar: UserAvatar" FROM users WHERE email = $1"#,
+            r#"SELECT id,name,email,hash,created_at,avatar as "avatar: UserAvatar" FROM "user" WHERE email = $1"#,
             email
         )
-            .fetch_optional(&self.conn).await
-            .map_err(map_sqlx_err)?;
+            .fetch_optional(&self.conn).await?;
         Ok(res)
     }
 
     #[instrument]
     async fn update(&mut self, id: &Uuid, update: UserUpdate) -> SResult<Option<User>> {
-        sqlx::query_as!(
+        let res = sqlx::query_as!(
             User,
             r#"
-                UPDATE "users"
-                SET email = coalesce($1, "users".email),
-                    avatar = coalesce($2, "users".avatar),
-                    name = coalesce($3, "users".name)
+                UPDATE "user"
+                SET email = coalesce($1, "user".email),
+                    avatar = coalesce($2, "user".avatar),
+                    name = coalesce($3, "user".name)
                 WHERE id = $4
                 RETURNING id,name,email,hash,created_at,avatar as "avatar: UserAvatar"
             "#,
@@ -124,8 +121,8 @@ impl UserStore for PgStore {
             id
         )
         .fetch_optional(&self.conn)
-        .await
-        .map_err(map_sqlx_err)
+        .await?;
+        Ok(res)
     }
 }
 

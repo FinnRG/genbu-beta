@@ -1,9 +1,8 @@
-CREATE TABLE users (
-  id UUID PRIMARY KEY,
-  name TEXT NOT NULL,
-  email TEXT collate "case_insensitive" UNIQUE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  avatar UUID,
-  hash VARCHAR NOT NULL
+create table "user" (
+  id uuid primary key,
+  name text not null,
+  email text collate "case_insensitive" unique not null,
+  created_at timestamptz not null,
+  avatar uuid,
+  hash text not null
 );
-
