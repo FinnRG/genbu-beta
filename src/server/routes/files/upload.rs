@@ -3,13 +3,10 @@ use std::{
     io::{Seek, SeekFrom, Write},
 };
 
-use axum::{
-    extract::{multipart::Field, Multipart, Path},
-    Extension, Json,
-};
+use axum::{extract::Path, Extension, Json};
 
 use crate::stores::{
-    files::storage::{Bucket, FileError, FileStore},
+    files::storage::{Bucket, FileError, FileStorage},
     Uuid,
 };
 
@@ -23,9 +20,9 @@ pub struct UploadFileRequest {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct UploadFileResponse {
-    presigned: bool,
-    upload_id: Option<String>,
-    uris: Option<Vec<String>>,
+    pub presigned: bool,
+    pub upload_id: Option<String>,
+    pub uris: Option<Vec<String>>,
 }
 
 // TODO: Make this configurable
@@ -38,17 +35,17 @@ static MAX_FILE_SIZE: usize = 1_000_000_000;
     request_body = UploadFileRequest,
     responses(
         (status = 200, description = "Upload request is valid and accepted", body = UploadFileResponse),
-        (status = 403, description = "Upload request is invalid")
+        (status = 422, description = "Upload request is invalid (i.e. file is too large)")
     )
 )]
-pub async fn upload_file_request<F: FileStore>(
+pub async fn upload_file_request<F: FileStorage>(
     Extension(file_store): Extension<F>,
     Json(req): Json<UploadFileRequest>,
 ) -> APIResult<Json<UploadFileResponse>> {
     if req.size > MAX_FILE_SIZE {
         return Err(FileError::FileTooLarge(req.size).into());
     }
-    if <F as FileStore>::can_presign() {
+    if <F as FileStorage>::can_presign() {
         let (uris, upload_id) = get_presigned_upload_urls(file_store, req).await?;
         return Ok(Json(UploadFileResponse {
             presigned: true,
@@ -75,7 +72,7 @@ pub struct UploadUnsignedRequest {
     post,
     tag = "files",
     path = "/api/files/upload/unsigned/{id}",
-    request_body(content = UploadUnsignedRequest, content_type = "multipart/form-data"),
+    request_body(content = UploadUnsignedRequest),
     responses(
         (status = 200, description = "File uploaded successfully"),
         (status = 500, description = "An internal error occured while uploading")
@@ -85,31 +82,23 @@ pub struct UploadUnsignedRequest {
     )
 )]
 // TODO: Use the task_id
-pub async fn upload_unsigned<F: FileStore>(
+pub async fn upload_unsigned<F: FileStorage>(
     Extension(mut file_store): Extension<F>,
     Path(task_id): Path<Uuid>,
-    mut multipart: Multipart,
+    bytes: bytes::Bytes,
 ) -> APIResult<()> {
     let file = tempfile::tempfile();
-    let field = multipart.next_field().await;
-    let (mut file, field) = match (file, field) {
-        (Ok(file), Ok(Some(field))) => (file, field),
-        (Err(e), _) => return Err(FileError::IOError(e).into()),
-        (_, Err(e)) => return Err(FileError::Other(Box::new(e)).into()),
-        // TODO: Rethink this error message
-        (_, Ok(None)) => return Err(FileError::FileIsEmpty.into()),
+    let mut file = match file {
+        Ok(file) => file,
+        Err(e) => return Err(FileError::IOError(e).into()),
     };
-    write_part_to_file(&mut file, field).await?;
+    write_part_to_file(&mut file, bytes).await?;
     Ok(file_store
         .upload_file(Bucket::UserFiles, &file, "test_unsigned")
         .await?)
 }
 
-async fn write_part_to_file(file: &mut File, field: Field<'_>) -> Result<(), FileError> {
-    let data = field
-        .bytes()
-        .await
-        .map_err(|e| FileError::Other(Box::new(e)))?;
+async fn write_part_to_file(file: &mut File, data: bytes::Bytes) -> Result<(), FileError> {
     file.write_all(&data)?;
     file.seek(SeekFrom::Start(0))?;
     Ok(())

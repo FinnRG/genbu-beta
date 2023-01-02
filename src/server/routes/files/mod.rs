@@ -4,16 +4,19 @@ use hyper::StatusCode;
 pub mod multipart_upload;
 pub mod upload;
 
+pub use multipart_upload::FinishUploadRequest;
+pub use upload::{UploadFileRequest, UploadFileResponse, UploadUnsignedRequest};
+
 pub mod routes {
     use axum::Router;
 
-    use crate::stores::files::storage::FileStore;
+    use crate::stores::files::storage::FileStorage;
 
     use super::upload::upload_unsigned;
     use super::{get_presigned_url, multipart_upload::finish_upload, upload::upload_file_request};
     use axum::routing::{get, post};
 
-    pub fn router<F: FileStore>() -> Router {
+    pub fn router<F: FileStorage>() -> Router {
         Router::new()
             .route("/api/files", get(get_presigned_url::<F>))
             .route("/api/files/upload", post(upload_file_request::<F>)) // TODO: COnsider using put
@@ -34,7 +37,7 @@ pub mod routes {
         (status = 200, description = "Upload request is valid and accepted", body = String)
     )
 )]
-pub async fn get_presigned_url<F: FileStore>(
+pub async fn get_presigned_url<F: FileStorage>(
     Extension(file_store): Extension<F>,
 ) -> impl IntoResponse {
     file_store
@@ -45,7 +48,7 @@ pub async fn get_presigned_url<F: FileStore>(
 
 use serde_json::json;
 
-use crate::stores::files::storage::{Bucket, FileError, FileStore};
+use crate::stores::files::storage::{Bucket, FileError, FileStorage};
 
 pub type APIResult<T> = Result<T, FileError>;
 

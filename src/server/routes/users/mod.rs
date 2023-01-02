@@ -35,7 +35,7 @@ pub fn router<DS: DataStore>() -> Router {
         )
         .route("/api/user/all", get(get_users::<DS>))
         .route("/api/user", post(create_user::<DS>))
-        .route_layer(middleware::from_fn(auth))
+        //.route_layer(middleware::from_fn(auth))
         .route("/api/register", post(register::<DS>))
         .route("/api/login", post(login::<DS>))
 }

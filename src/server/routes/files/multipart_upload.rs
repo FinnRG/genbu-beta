@@ -1,6 +1,6 @@
 use axum::{Extension, Json};
 
-use crate::stores::files::storage::{Bucket, FileStore};
+use crate::stores::files::storage::{Bucket, FileStorage};
 
 use super::{upload::UploadFileRequest, APIResult};
 
@@ -14,7 +14,7 @@ pub struct FinishUploadRequest {
 static CHUNK_SIZE: usize = 10_000_000;
 
 async fn single_file_upload_url(
-    file_store: impl FileStore,
+    file_store: impl FileStorage,
     bucket: Bucket,
     name: &str,
     size: usize,
@@ -26,7 +26,7 @@ async fn single_file_upload_url(
 }
 
 async fn multipart_upload_url(
-    file_store: impl FileStore,
+    file_store: impl FileStorage,
     bucket: Bucket,
     name: &str,
 ) -> APIResult<(Vec<String>, Option<String>)> {
@@ -38,7 +38,7 @@ async fn multipart_upload_url(
 }
 
 pub async fn get_presigned_upload_urls(
-    file_store: impl FileStore,
+    file_store: impl FileStorage,
     req: UploadFileRequest,
 ) -> APIResult<(Vec<String>, Option<String>)> {
     if req.size <= CHUNK_SIZE {
@@ -57,7 +57,7 @@ pub async fn get_presigned_upload_urls(
         (status = 500, description = "An internal error occured while uploading")
     )
 )]
-pub async fn finish_upload<F: FileStore>(
+pub async fn finish_upload<F: FileStorage>(
     Extension(file_store): Extension<F>,
     Json(req): Json<FinishUploadRequest>,
 ) -> APIResult<()> {

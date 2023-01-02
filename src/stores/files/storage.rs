@@ -4,6 +4,8 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::stores::{Reset, Setup};
+
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum PresignError {
@@ -66,9 +68,8 @@ impl Bucket {
 pub type SResult<T> = Result<T, FileError>;
 
 #[async_trait]
-pub trait FileStore: Clone + Sized + Send + Sync + 'static {
+pub trait FileStorage: Reset + Setup + Clone + Sized + Send + Sync + 'static {
     fn can_presign() -> bool;
-    async fn setup(&mut self) -> SResult<()>;
 
     async fn upload_file(&mut self, bucket: Bucket, name: &File, name: &str) -> SResult<()>;
     async fn delete_file(&mut self, bucket: Bucket, name: &str) -> SResult<()>;

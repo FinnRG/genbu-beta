@@ -110,6 +110,11 @@ pub async fn build_app() -> Router {
     let mut store = _pg_store;
     store.reset().await.expect("Unable to reset store");
     store.setup().await.expect("Unable to setup store");
+    let mut file_store = s3::S3Store::new().await;
+    file_store
+        .setup()
+        .await
+        .expect("Unable to setup file_store");
     GenbuServerBuilder::new()
         .with_store(store.clone())
         .with_file_store(s3::S3Store::new().await)
@@ -121,3 +126,5 @@ pub async fn build_app() -> Router {
 pub fn build_connection_string(db_name: &str) -> String {
     "postgres://genbu:strong_password@127.0.0.1:5432/gtest-".to_owned() + db_name
 }
+
+pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;

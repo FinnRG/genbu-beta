@@ -19,9 +19,9 @@ use thiserror::Error;
 use crate::stores::{
     files::{
         database::{SResult, UploadLease, UploadLeaseStore},
-        storage::{Bucket, FileError, FileStore, PresignError},
+        storage::{Bucket, FileError, FileStorage, PresignError},
     },
-    Uuid,
+    Reset, Setup, Uuid,
 };
 
 #[derive(Clone)]
@@ -57,6 +57,17 @@ impl S3Store {
             Err(e) => Err(map_sdk_err(e)),
         }
     }
+
+    async fn delete_bucket(&mut self, bucket: Bucket) -> Result<(), FileError> {
+        let resp = self
+            .client
+            .delete_bucket()
+            .bucket(bucket.to_bucket_name())
+            .send()
+            .await;
+        resp.map(|_| ()).map_err(map_sdk_err)
+    }
+
     // TODO: Give server config here
     pub async fn new() -> Self {
         let region_provider = RegionProviderChain::default_provider().or_else("us-east-1");
@@ -71,22 +82,9 @@ impl S3Store {
 }
 
 #[async_trait]
-impl FileStore for S3Store {
+impl FileStorage for S3Store {
     fn can_presign() -> bool {
         true
-    }
-
-    async fn setup(&mut self) -> Result<(), FileError> {
-        let buckets = vec![
-            Bucket::UserFiles,
-            Bucket::VideoFiles,
-            Bucket::NotebookFiles,
-            Bucket::ProfileImages,
-        ];
-        for &bucket in &buckets {
-            self.create_bucket(bucket).await?;
-        }
-        Ok(())
     }
 
     async fn upload_file(
@@ -239,6 +237,34 @@ impl FileStore for S3Store {
             .await
             .map(|_| ())
             .map_err(map_sdk_err)
+    }
+}
+
+const BUCKETS: [Bucket; 4] = [
+    Bucket::UserFiles,
+    Bucket::VideoFiles,
+    Bucket::NotebookFiles,
+    Bucket::ProfileImages,
+];
+
+#[async_trait]
+impl Reset for S3Store {
+    #[cfg(debug_assertions)]
+    async fn reset(&mut self) -> Result<(), Box<dyn Error>> {
+        for bucket in BUCKETS {
+            self.delete_bucket(bucket).await?;
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Setup for S3Store {
+    async fn setup(&mut self) -> Result<(), Box<dyn Error>> {
+        for bucket in BUCKETS {
+            self.create_bucket(bucket).await?;
+        }
+        Ok(())
     }
 }
 
