@@ -87,10 +87,10 @@ pub enum UserError {
     IDAlreadyExists(Option<Uuid>),
 
     #[error("unable to establish a database connection")]
-    Connection(#[source] Box<dyn Error>),
+    Connection(#[source] Box<dyn Error + Send + Sync>),
 
     #[error("unknown data store error")]
-    Other(#[source] Box<dyn Error>),
+    Other(#[source] Box<dyn Error + Send + Sync>),
 
     #[error("this error shouldn't appear")]
     Infallible,

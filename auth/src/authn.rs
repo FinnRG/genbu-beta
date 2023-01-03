@@ -20,7 +20,7 @@
 //!
 //! ```
 //! use genbu_auth::authn::*;
-//! use genbu_stores::Uuid;
+//! use uuid::Uuid;
 //!
 //! let jwt = create_jwt(Uuid::new_v4());
 //! assert!(jwt.is_ok());
