@@ -2,6 +2,7 @@ create type bucket as enum ('profileimages', 'videofiles', 'userfiles', 'noteboo
 
 create table "upload_lease" (
     id uuid primary key,
+    s3_upload_id text not null,
     owner uuid not null,
     name text not null,
     bucket bucket not null,

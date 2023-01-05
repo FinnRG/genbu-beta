@@ -1,4 +1,4 @@
-use std::{error::Error, fs::File, io, path::PathBuf};
+use std::error::Error;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -30,12 +30,6 @@ pub enum FileError {
 
     #[error("error while presigning operation")]
     Presigning(#[source] PresignError),
-
-    #[error("file not found")]
-    FileNotFound(PathBuf),
-
-    #[error("unknown io error")]
-    IOError(#[from] io::Error),
 }
 
 #[non_exhaustive]
@@ -64,9 +58,6 @@ pub type SResult<T> = Result<T, FileError>;
 
 #[async_trait]
 pub trait FileStorage: Reset + Setup + Clone + Sized + Send + Sync + 'static {
-    fn can_presign() -> bool;
-
-    async fn upload_file(&mut self, bucket: Bucket, file: &File, name: &str) -> SResult<()>;
     async fn delete_file(&mut self, bucket: Bucket, name: &str) -> SResult<()>;
     async fn get_presigned_url(&self, bucket: Bucket, name: &str) -> SResult<String>;
     async fn get_presigned_upload_url(&self, bucket: Bucket, name: &str) -> SResult<String>;

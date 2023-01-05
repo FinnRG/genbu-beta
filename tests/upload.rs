@@ -2,7 +2,7 @@ use std::{fs::File, io::Read};
 
 use axum::http::{Request, StatusCode};
 use common::TestClient;
-use genbu_server::server::routes::files::UploadFileResponse;
+use genbu_server::handler::files::upload::UploadFileResponse;
 use reqwest::Client;
 use serde_json::json;
 
@@ -25,9 +25,8 @@ async fn upload_small_file() -> Result<()> {
     assert_eq!(resp.status(), StatusCode::OK);
 
     let resp: UploadFileResponse = serde_json::from_value(response_json(&mut resp).await)?;
-    assert!(resp.presigned);
 
-    let uris = resp.uris.unwrap();
+    let uris = resp.uris;
     assert_eq!(uris.len(), 1);
 
     let mut buffer = Vec::new();
@@ -80,9 +79,8 @@ async fn upload_multipart() -> Result<()> {
     assert_eq!(resp.status(), StatusCode::OK);
 
     let resp: UploadFileResponse = serde_json::from_value(response_json(&mut resp).await)?;
-    assert!(resp.presigned);
     assert!(resp.upload_id.is_some());
-    assert!(resp.uris.unwrap().len() > 1);
+    assert!(resp.uris.len() > 1);
 
     Ok(())
 }

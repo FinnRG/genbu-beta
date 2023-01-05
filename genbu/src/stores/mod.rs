@@ -10,7 +10,7 @@ pub type OffsetDateTime = time::OffsetDateTime;
 
 #[async_trait]
 pub trait DataStore:
-    Sized + users::UserStore + Reset + Setup + Send + Sync + Clone + 'static
+    users::UserStore + files::UploadLeaseStore + Reset + Setup + Sized + Send + Sync + Clone + 'static
 {
     // TODO: Replace this with server config
     async fn new(arg: String) -> Result<Self, Box<dyn Error>>;

@@ -1,13 +1,9 @@
-use std::{
-    fs::File,
-    io::{BufReader, Read},
-    time::Duration,
-};
+use std::time::Duration;
 
 use aws_sdk_s3::{
     model::{CompletedMultipartUpload, CompletedPart, Part},
     presigning::config::PresigningConfig,
-    types::{ByteStream, SdkError},
+    types::SdkError,
 };
 
 use crate::stores::files::{
@@ -19,31 +15,6 @@ use super::{map_sdk_err, S3Store};
 
 #[async_trait::async_trait]
 impl FileStorage for S3Store {
-    fn can_presign() -> bool {
-        true
-    }
-
-    async fn upload_file(
-        &mut self,
-        bucket: Bucket,
-        file: &File,
-        name: &str,
-    ) -> Result<(), FileError> {
-        let mut reader = BufReader::new(file);
-        let mut buffer = Vec::new();
-        reader.read_to_end(&mut buffer)?;
-        let stream = ByteStream::from(buffer);
-        let res = self
-            .client
-            .put_object()
-            .bucket(bucket.to_bucket_name())
-            .key(name)
-            .body(stream)
-            .send()
-            .await;
-        res.map(|_| ()).map_err(map_sdk_err)
-    }
-
     async fn delete_file(&mut self, bucket: Bucket, name: &str) -> Result<(), FileError> {
         let res = self
             .client

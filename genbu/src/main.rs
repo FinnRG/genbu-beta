@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use genbu_server::connectors::{memory::MemStore, postgres::PgStore, s3};
 use genbu_server::server::builder::GenbuServerBuilder;
-use genbu_server::stores::{files::storage::FileStorage, DataStore, Setup};
+use genbu_server::stores::{DataStore, Setup};
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 
 async fn send_test_email() -> Result<(), Box<dyn std::error::Error>> {

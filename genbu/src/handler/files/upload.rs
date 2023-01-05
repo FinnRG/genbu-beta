@@ -10,13 +10,13 @@ use crate::stores::{
     users::User,
 };
 
-pub type FileAPIResult<T> = std::result::Result<T, APIError>;
+pub type UploadAPIResult<T> = std::result::Result<T, UploadAPIError>;
 
 static MAX_FILE_SIZE: u64 = 1_000_000_000;
 static CHUNK_SIZE: u64 = 10_000_000;
 
 #[derive(Debug, Error)]
-pub enum APIError {
+pub enum UploadAPIError {
     #[error("file storage error")]
     StorageError(#[from] FileError),
 
@@ -29,14 +29,11 @@ pub enum APIError {
     #[error("file not found")]
     NotFound(Box<dyn Debug + Send + Sync>),
 
-    #[error("lease for upload expired")]
-    LeaseExpired,
-
     #[error("unknown api error")]
     Unknown,
 }
 
-type Result<T> = FileAPIResult<T>;
+type Result<T> = UploadAPIResult<T>;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct UploadFileRequest {
@@ -59,7 +56,7 @@ pub async fn post(
     upload_req: UploadFileRequest,
 ) -> Result<UploadFileResponse> {
     if upload_req.size > MAX_FILE_SIZE {
-        return Err(APIError::FileTooLarge(upload_req.size, MAX_FILE_SIZE));
+        return Err(UploadAPIError::FileTooLarge(upload_req.size, MAX_FILE_SIZE));
     }
 
     let lease = lease_store
@@ -75,17 +72,23 @@ pub async fn post(
     return Ok(UploadFileResponse { uris, upload_id });
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct GetUrisRequest {
+    lease_id: LeaseID,
+}
+
 /// The handler for getting the uploads urls for any upload that was previously registered
 /// with an ```UploadLease```
 pub async fn get(
     file_storage: impl FileStorage,
     lease_store: impl UploadLeaseStore,
-    lease_id: LeaseID,
+    start_req: GetUrisRequest,
 ) -> Result<UploadFileResponse> {
+    let lease_id = start_req.lease_id;
     let lease = lease_store
         .get(&lease_id)
         .await?
-        .ok_or(APIError::NotFound(Box::new(lease_id)))?;
+        .ok_or(UploadAPIError::NotFound(Box::new(lease_id)))?;
     let (uris, upload_id) = get_presigned_upload_urls(file_storage, &lease).await?;
     return Ok(UploadFileResponse { uris, upload_id });
 }
@@ -99,4 +102,25 @@ async fn get_presigned_upload_urls(
         .get_presigned_upload_urls(lease.bucket, &lease.name, lease.size as u64, CHUNK_SIZE)
         .await?;
     Ok((uris, Some(upload_id)))
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct FinishUploadRequest {
+    lease_id: LeaseID,
+}
+
+pub async fn finish_upload(
+    file_storage: impl FileStorage,
+    mut lease_store: impl UploadLeaseStore,
+    finish_req: FinishUploadRequest,
+) -> Result<()> {
+    let lease_id = finish_req.lease_id;
+    let Some(lease) = lease_store.mark_completed(&lease_id).await? else {
+        return Err(UploadAPIError::NotFound(Box::new(lease_id)))
+    };
+
+    file_storage
+        .finish_multipart_upload(lease.bucket, &lease.name, &lease.s3_upload_id)
+        .await?;
+    Ok(())
 }

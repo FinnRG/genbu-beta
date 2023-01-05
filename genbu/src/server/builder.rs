@@ -63,7 +63,7 @@ impl<S: DataStore, F: FileStorage> Default for GenbuServerBuilder<S, F> {
 impl<S: DataStore, F: FileStorage> GenbuServer<S, F> {
     fn api_router() -> Router {
         users::router::<S>()
-            .merge(files::routes::router::<F>())
+            .merge(files::router::<F, S>())
             .merge(SwaggerUi::new("/swagger-ui").url("/api-doc/openapi.json", ApiDoc::openapi()))
     }
 

@@ -9,7 +9,9 @@ use crate::stores::{OffsetDateTime, Uuid};
 
 use super::storage::Bucket;
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, utoipa::ToSchema, sqlx::Type)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, utoipa::ToSchema, sqlx::Type,
+)]
 #[sqlx(transparent)]
 #[serde(transparent)]
 pub struct LeaseID(Uuid);
@@ -19,11 +21,11 @@ pub enum UploadLeaseError {
     #[error("unable to establish a file storage connection")]
     Connection(#[source] Box<dyn Error>),
 
-    #[error("unable to find a lease with the id: {0}")]
-    LeaseNotFound(Uuid),
-
     #[error("invalid / no size specified")]
     InvalidSize,
+
+    #[error("lease {0:?} expired")]
+    LeaseExpired(LeaseID),
 
     #[error("unknown internal error")]
     Other(#[source] Box<dyn Error>),
@@ -32,6 +34,7 @@ pub enum UploadLeaseError {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UploadLease {
     pub id: LeaseID,
+    pub s3_upload_id: String,
     pub owner: Uuid,
     pub completed: bool,
     pub size: i64,
@@ -46,6 +49,7 @@ impl UploadLease {
     pub fn template() -> Self {
         UploadLease {
             id: LeaseID(Uuid::new_v4()),
+            s3_upload_id: "".to_owned(),
             owner: Uuid::new_v4(),
             completed: false,
             size: -1,
@@ -66,5 +70,7 @@ pub trait UploadLeaseStore {
     async fn delete(&mut self, id: &LeaseID) -> SResult<Option<UploadLease>>;
 
     async fn get(&self, id: &LeaseID) -> SResult<Option<UploadLease>>;
-    async fn get_by_user(&self, id: &LeaseID) -> SResult<Vec<UploadLease>>;
+    async fn get_by_user(&self, id: &Uuid) -> SResult<Vec<UploadLease>>;
+
+    async fn mark_completed(&mut self, id: &LeaseID) -> SResult<Option<UploadLease>>;
 }

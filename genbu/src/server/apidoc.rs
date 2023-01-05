@@ -1,10 +1,9 @@
+use crate::handler::files::upload::{
+    FinishUploadRequest, GetUrisRequest, UploadFileRequest, UploadFileResponse,
+};
 use crate::handler::users::{auth::LoginRequest, CreateUserRequest};
 use crate::server::routes::{
-    files::{
-        self,
-        multipart_upload::FinishUploadRequest,
-        upload::{UploadFileRequest, UploadFileResponse, UploadUnsignedRequest},
-    },
+    files,
     users::{self, UserResponse},
 };
 use crate::stores::users::{User, UserAvatar};
@@ -22,12 +21,10 @@ use utoipa::{
         users::delete_user,
         users::register,
         users::login,
-        files::get_presigned_url,
-        files::upload::upload_file_request,
-        files::upload::upload_unsigned,
-        files::multipart_upload::finish_upload
+        files::upload_file_request,
+        files::finish_upload
     ),
-    components(schemas(User, UserAvatar, CreateUserRequest, LoginRequest, UserResponse, UploadFileRequest, UploadFileResponse, UploadUnsignedRequest, FinishUploadRequest)),
+    components(schemas(User, UserAvatar, CreateUserRequest, LoginRequest, UserResponse, UploadFileRequest, UploadFileResponse,  FinishUploadRequest, GetUrisRequest)),
     modifiers(&SecurityAddon),
     security(
         ("token" = [])

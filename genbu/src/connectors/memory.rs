@@ -3,6 +3,7 @@ use parking_lot::Mutex;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::stores::{
+    files::{database::LeaseID, UploadLease, UploadLeaseError, UploadLeaseStore},
     users::{SResult, User, UserError, UserStore, UserUpdate},
     DataStore, Reset, Setup, Uuid,
 };
@@ -10,6 +11,7 @@ use crate::stores::{
 #[derive(Clone, Default)]
 pub struct MemStore {
     users: Arc<Mutex<HashMap<Uuid, User>>>,
+    upload: Arc<Mutex<HashMap<LeaseID, UploadLease>>>,
 }
 
 impl MemStore {
@@ -70,7 +72,7 @@ impl UserStore for MemStore {
     }
 
     async fn update(&mut self, id: &Uuid, update: UserUpdate) -> SResult<Option<User>> {
-        let user = self.get(id).await?;
+        let user = UserStore::get(self, id).await?;
         let Some(mut user) = user else {
             return Ok(None)
         };
@@ -81,6 +83,45 @@ impl UserStore for MemStore {
             user.avatar = Some(update_avatar);
         }
         Ok(self.users.lock().insert(user.id, user))
+    }
+}
+
+type UploadResult<T> = Result<T, UploadLeaseError>;
+
+#[async_trait]
+impl UploadLeaseStore for MemStore {
+    async fn add(&mut self, lease: &UploadLease) -> UploadResult<UploadLease> {
+        self.upload.lock().insert(lease.id, lease.clone());
+        Ok(lease.clone())
+    }
+
+    async fn delete(&mut self, id: &LeaseID) -> UploadResult<Option<UploadLease>> {
+        Ok(self.upload.lock().remove(id))
+    }
+
+    async fn get(&self, id: &LeaseID) -> UploadResult<Option<UploadLease>> {
+        Ok(self.upload.lock().get(id).map(Clone::clone))
+    }
+    async fn get_by_user(&self, id: &Uuid) -> UploadResult<Vec<UploadLease>> {
+        Ok(self
+            .upload
+            .lock()
+            .iter()
+            .map(|(_, lease)| lease)
+            .filter(|lease| lease.owner == *id)
+            .cloned()
+            .collect())
+    }
+
+    async fn mark_completed(&mut self, id: &LeaseID) -> UploadResult<Option<UploadLease>> {
+        let mut upload = self.upload.lock();
+        let Some(lease) = upload.get(id) else {
+            return Ok(None);
+        };
+        let mut lease = lease.clone();
+        lease.completed = true;
+        upload.insert(id.clone(), lease.clone());
+        Ok(Some(lease))
     }
 }
 
