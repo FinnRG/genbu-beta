@@ -11,7 +11,7 @@ use crate::stores::{
 
 #[derive(Clone, Debug)]
 pub struct PgStore {
-    conn: PgPool,
+    pub(crate) conn: PgPool,
     conn_str: String,
 }
 
@@ -50,7 +50,7 @@ impl UserStore for PgStore {
             user.email,
             user.created_at,
             user.hash,
-            user.avatar.as_ref().map(Deref::deref)
+            user.avatar as _
         ).execute(&self.conn)
             .await
             .map(|_| ())?;

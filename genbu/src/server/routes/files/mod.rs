@@ -56,8 +56,6 @@ impl IntoResponse for FileError {
     fn into_response(self) -> axum::response::Response {
         let (status, error_message) = match self {
             FileError::FileNotFound(_) => (StatusCode::NOT_FOUND, "File not found"),
-            FileError::FileIsEmpty => (StatusCode::UNPROCESSABLE_ENTITY, "File is empty"),
-            FileError::FileTooLarge(_) => (StatusCode::UNPROCESSABLE_ENTITY, "File is too large"),
             FileError::Connection(_) => (
                 StatusCode::BAD_GATEWAY,
                 "Server failed to establish connection to database",

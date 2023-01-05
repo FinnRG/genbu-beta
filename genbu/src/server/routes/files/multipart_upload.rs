@@ -20,7 +20,7 @@ async fn single_file_upload_url(
     size: usize,
 ) -> APIResult<(Vec<String>, Option<String>)> {
     let (uris, upload_id) = file_store
-        .get_presigned_upload_urls(bucket, name, size, CHUNK_SIZE)
+        .get_presigned_upload_urls(bucket, name, size as u64, CHUNK_SIZE as u64)
         .await?;
     Ok((uris, Some(upload_id)))
 }

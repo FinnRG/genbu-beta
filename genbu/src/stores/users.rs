@@ -1,14 +1,9 @@
 use std::{error::Error, fmt::Debug, ops::Deref, str::FromStr};
 
-use async_trait::async_trait;
-use oso::PolarClass;
-use thiserror::Error;
 use time::{serde::iso8601, OffsetDateTime};
 use uuid::{Error as UuidError, Uuid};
 
-use utoipa::ToSchema;
-
-#[derive(Clone, Debug, PolarClass, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, oso::PolarClass, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct User {
     #[polar(attribute)]
     pub id: Uuid,
@@ -36,7 +31,7 @@ impl User {
 }
 
 #[derive(
-    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, sqlx::Type,
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema, sqlx::Type,
 )]
 #[sqlx(transparent)]
 pub struct UserAvatar(Uuid);
@@ -61,7 +56,7 @@ impl Deref for UserAvatar {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Error)]
+#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum UserAvatarError {
     #[error("uuid error")]
     UuidError(UuidError),
@@ -78,7 +73,7 @@ impl FromStr for UserAvatar {
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum UserError {
     #[error("a user with the email `{0}` already exists in the store")]
     EmailAlreadyExists(String),
@@ -107,7 +102,7 @@ pub struct UserUpdate {
 pub type SResult<T> = Result<T, UserError>;
 
 /// Main data layer abstraction for users.
-#[async_trait]
+#[async_trait::async_trait]
 pub trait UserStore {
     // TODO: Better error handling
     async fn add(&mut self, user: &User) -> SResult<()>;

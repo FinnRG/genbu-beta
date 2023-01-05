@@ -42,9 +42,6 @@ pub async fn upload_file_request<F: FileStorage>(
     Extension(file_store): Extension<F>,
     Json(req): Json<UploadFileRequest>,
 ) -> APIResult<Json<UploadFileResponse>> {
-    if req.size > MAX_FILE_SIZE {
-        return Err(FileError::FileTooLarge(req.size).into());
-    }
     if <F as FileStorage>::can_presign() {
         let (uris, upload_id) = get_presigned_upload_urls(file_store, req).await?;
         return Ok(Json(UploadFileResponse {

@@ -34,18 +34,13 @@ pub enum FileError {
     #[error("file not found")]
     FileNotFound(PathBuf),
 
-    #[error("file has size 0")]
-    FileIsEmpty,
-
-    #[error("file size {0} is too large")]
-    FileTooLarge(usize),
-
     #[error("unknown io error")]
     IOError(#[from] io::Error),
 }
 
 #[non_exhaustive]
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "bucket", rename_all = "lowercase")]
 pub enum Bucket {
     ProfileImages,
     VideoFiles,
@@ -71,7 +66,7 @@ pub type SResult<T> = Result<T, FileError>;
 pub trait FileStorage: Reset + Setup + Clone + Sized + Send + Sync + 'static {
     fn can_presign() -> bool;
 
-    async fn upload_file(&mut self, bucket: Bucket, name: &File, name: &str) -> SResult<()>;
+    async fn upload_file(&mut self, bucket: Bucket, file: &File, name: &str) -> SResult<()>;
     async fn delete_file(&mut self, bucket: Bucket, name: &str) -> SResult<()>;
     async fn get_presigned_url(&self, bucket: Bucket, name: &str) -> SResult<String>;
     async fn get_presigned_upload_url(&self, bucket: Bucket, name: &str) -> SResult<String>;
@@ -79,8 +74,8 @@ pub trait FileStorage: Reset + Setup + Clone + Sized + Send + Sync + 'static {
         &self,
         bucket: Bucket,
         name: &str,
-        size: usize,
-        chunk_size: usize,
+        size: u64,
+        chunk_size: u64,
     ) -> SResult<(Vec<String>, String)>;
     async fn finish_multipart_upload(
         &self,
