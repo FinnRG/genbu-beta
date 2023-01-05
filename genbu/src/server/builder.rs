@@ -28,7 +28,7 @@ pub struct GenbuServer<S: DataStore, F: FileStorage> {
 impl<S: DataStore, F: FileStorage + Send + Sync> GenbuServerBuilder<S, F> {
     #[must_use]
     pub const fn new() -> Self {
-        GenbuServerBuilder {
+        Self {
             users: None,
             files: None,
         }
@@ -83,7 +83,7 @@ impl<S: DataStore, F: FileStorage> GenbuServer<S, F> {
         }
         #[cfg(debug_assertions)]
         {
-            app = app.layer(CorsLayer::permissive())
+            app = app.layer(CorsLayer::permissive());
         }
         app
     }

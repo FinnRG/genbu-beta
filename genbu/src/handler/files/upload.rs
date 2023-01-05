@@ -29,6 +29,9 @@ pub enum UploadAPIError {
     #[error("file not found")]
     NotFound(Box<dyn Debug + Send + Sync>),
 
+    #[error("size {0} is negative")]
+    NegativeSize(i64),
+
     #[error("unknown api error")]
     Unknown,
 }
@@ -59,17 +62,21 @@ pub async fn post(
         return Err(UploadAPIError::FileTooLarge(upload_req.size, MAX_FILE_SIZE));
     }
 
+    let size = upload_req
+        .size
+        .try_into()
+        .map_err(|_| UploadAPIError::Unknown)?;
     let lease = lease_store
         .add(&UploadLease {
             owner: user.id,
-            size: upload_req.size as i64,
+            size,
             name: user.id.to_string() + &upload_req.name,
             ..UploadLease::template()
         })
         .await?;
 
     let (uris, upload_id) = get_presigned_upload_urls(file_storage, &lease).await?;
-    return Ok(UploadFileResponse { uris, upload_id });
+    Ok(UploadFileResponse { upload_id, uris })
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
@@ -90,16 +97,19 @@ pub async fn get(
         .await?
         .ok_or(UploadAPIError::NotFound(Box::new(lease_id)))?;
     let (uris, upload_id) = get_presigned_upload_urls(file_storage, &lease).await?;
-    return Ok(UploadFileResponse { uris, upload_id });
+    Ok(UploadFileResponse { upload_id, uris })
 }
 
 async fn get_presigned_upload_urls(
     file_storage: impl FileStorage,
     lease: &UploadLease,
 ) -> Result<(Vec<String>, Option<String>)> {
-    debug_assert!(lease.size > 0);
+    let size = lease
+        .size
+        .try_into()
+        .map_err(|_| UploadAPIError::NegativeSize(lease.size))?;
     let (uris, upload_id) = file_storage
-        .get_presigned_upload_urls(lease.bucket, &lease.name, lease.size as u64, CHUNK_SIZE)
+        .get_presigned_upload_urls(lease.bucket, &lease.name, size, CHUNK_SIZE)
         .await?;
     Ok((uris, Some(upload_id)))
 }

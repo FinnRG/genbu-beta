@@ -47,9 +47,9 @@ pub struct UploadLease {
 impl UploadLease {
     #[must_use]
     pub fn template() -> Self {
-        UploadLease {
+        Self {
             id: LeaseID(Uuid::new_v4()),
-            s3_upload_id: "".to_owned(),
+            s3_upload_id: String::new(),
             owner: Uuid::new_v4(),
             completed: false,
             size: -1,
@@ -64,7 +64,7 @@ impl UploadLease {
 pub type SResult<T> = Result<T, UploadLeaseError>;
 
 #[async_trait]
-pub trait UploadLeaseStore {
+pub trait UploadLeaseStore: Sized + Send + Sync + Clone + 'static {
     async fn add(&mut self, lease: &UploadLease) -> SResult<UploadLease>;
 
     async fn delete(&mut self, id: &LeaseID) -> SResult<Option<UploadLease>>;

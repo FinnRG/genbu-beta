@@ -49,17 +49,17 @@ pub async fn update<US: UserStore>(
     if update == UserUpdate::default() {
         return get(user_store, user_id).await;
     }
-    Ok(user_store
+    user_store
         .update(&user_id, update)
         .await?
-        .ok_or(APIError::NotFound(user_id.to_string()))?)
+        .ok_or(APIError::NotFound(user_id.to_string()))
 }
 
 pub async fn delete<US: UserStore>(mut user_store: US, user_id: Uuid) -> Result<User> {
-    Ok(user_store
+    user_store
         .delete(&user_id)
         .await?
-        .ok_or(APIError::NotFound(user_id.to_string()))?)
+        .ok_or(APIError::NotFound(user_id.to_string()))
 }
 
 #[derive(Clone, serde::Deserialize, utoipa::ToSchema)]
@@ -89,11 +89,11 @@ pub(crate) async fn add_user_to_store<US: UserStore>(
 }
 
 pub async fn create<US: UserStore>(user_store: US, create_req: CreateUserRequest) -> Result<Uuid> {
-    Ok(add_user_to_store(user_store, create_req).await?)
+    add_user_to_store(user_store, create_req).await
 }
 
 impl From<HashError> for APIError {
     fn from(_: HashError) -> Self {
-        APIError::CryptoError
+        Self::CryptoError
     }
 }

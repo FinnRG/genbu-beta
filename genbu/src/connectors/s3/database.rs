@@ -16,9 +16,9 @@ impl From<sqlx::Error> for UploadLeaseError {
             | sqlx::Error::Tls(_)
             | sqlx::Error::Protocol(_)
             | sqlx::Error::PoolTimedOut
-            | sqlx::Error::PoolClosed => UploadLeaseError::Connection(Box::new(value)),
-            sqlx::Error::Database(e) => UploadLeaseError::Other(e.into()),
-            _ => UploadLeaseError::Other(Box::new(value)),
+            | sqlx::Error::PoolClosed => Self::Connection(Box::new(value)),
+            sqlx::Error::Database(e) => Self::Other(e.into()),
+            _ => Self::Other(Box::new(value)),
         }
     }
 }
@@ -82,7 +82,7 @@ impl UploadLeaseStore for PgStore {
             return Ok(None);
         };
         if OffsetDateTime::now_utc() < lease.expires_at {
-            return Err(UploadLeaseError::LeaseExpired(id.clone()));
+            return Err(UploadLeaseError::LeaseExpired(*id));
         }
 
         let res = sqlx::query_as!(

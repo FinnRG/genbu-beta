@@ -17,6 +17,10 @@ pub enum PresignError {
 }
 
 #[derive(Debug, Error)]
+#[error("part size exceeds i32::MAX")]
+pub struct InvalidPartSize;
+
+#[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum FileError {
     #[error("unable to establish a file storage connection")]

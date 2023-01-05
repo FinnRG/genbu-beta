@@ -7,7 +7,7 @@ use aws_sdk_s3::{
 };
 
 use crate::stores::files::{
-    storage::{Bucket, FileError, PresignError},
+    storage::{Bucket, FileError, InvalidPartSize, PresignError},
     FileStorage,
 };
 
@@ -89,7 +89,10 @@ impl FileStorage for S3Store {
         };
 
         for chunk_index in 0..chunk_count {
-            let part_number = (chunk_index as i32) + 1;
+            let chunk_index: i32 = chunk_index
+                .try_into()
+                .map_err(|_| FileError::Other(InvalidPartSize.into()))?;
+            let part_number = chunk_index + 1;
             let presign_res = self
                 .client
                 .upload_part()

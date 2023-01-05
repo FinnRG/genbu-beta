@@ -94,7 +94,7 @@ async fn create_user<DS: DataStore>(
 }
 
 /// Creates a response which creates a user-specific __Host-Token cookie. The token is secure, http
-/// only and utilizes the strict SameSite policy.
+/// only and utilizes the strict `SameSite` policy.
 ///
 /// # Errors
 ///

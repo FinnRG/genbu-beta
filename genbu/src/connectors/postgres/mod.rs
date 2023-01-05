@@ -22,20 +22,20 @@ impl From<sqlx::Error> for UserError {
             | sqlx::Error::Tls(_)
             | sqlx::Error::Protocol(_)
             | sqlx::Error::PoolTimedOut
-            | sqlx::Error::PoolClosed => UserError::Connection(Box::new(value)),
+            | sqlx::Error::PoolClosed => Self::Connection(Box::new(value)),
             sqlx::Error::Database(_) => {
                 let e = value.as_database_error();
                 if let Some(db_err) = e {
                     match db_err.constraint() {
-                        Some("user_email_key") => UserError::EmailAlreadyExists(String::new()),
-                        Some("user_pkey") => UserError::IDAlreadyExists(None),
-                        _ => UserError::Other(Box::new(value)),
+                        Some("user_email_key") => Self::EmailAlreadyExists(String::new()),
+                        Some("user_pkey") => Self::IDAlreadyExists(None),
+                        _ => Self::Other(Box::new(value)),
                     }
                 } else {
-                    UserError::Other(Box::new(value))
+                    Self::Other(Box::new(value))
                 }
             }
-            _ => UserError::Other(Box::new(value)),
+            _ => Self::Other(Box::new(value)),
         }
     }
 }

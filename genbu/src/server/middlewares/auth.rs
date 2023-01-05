@@ -7,6 +7,7 @@ use axum_extra::extract::CookieJar;
 use genbu_auth::authn::validate_jwt;
 use tracing::{debug, warn};
 
+#[allow(clippy::future_not_send)]
 #[tracing::instrument(skip_all)]
 pub async fn auth<B>(
     cookie_jar: CookieJar,

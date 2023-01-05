@@ -29,7 +29,7 @@ pub async fn login_password<US: UserStore>(
     login_req: LoginRequest,
 ) -> Result<Uuid> {
     let db_user = user_store.get_by_email(&login_req.email).await?;
-    let res = tokio::task::spawn_blocking(move || {
+    tokio::task::spawn_blocking(move || {
         let hash = db_user.as_ref().map_or(
             "$argon2id$v=19$m=16,t=2,p=1$MVVDSUtUUThaQzh0RHRkNg$mD5KaV0QFxQzWhmVZ+5tsA",
             |u| &u.hash,
@@ -41,6 +41,5 @@ pub async fn login_password<US: UserStore>(
         Err(APIError::WrongCredentials)
     })
     .await
-    .map_err(|_| APIError::Unknown)?;
-    Ok(res?)
+    .map_err(|_| APIError::Unknown)?
 }

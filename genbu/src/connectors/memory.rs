@@ -120,7 +120,7 @@ impl UploadLeaseStore for MemStore {
         };
         let mut lease = lease.clone();
         lease.completed = true;
-        upload.insert(id.clone(), lease.clone());
+        upload.insert(*id, lease.clone());
         Ok(Some(lease))
     }
 }

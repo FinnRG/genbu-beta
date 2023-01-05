@@ -41,8 +41,9 @@ pub async fn upload_file_request<F: FileStorage, L: UploadLeaseStore>(
     Json(req): Json<handler::UploadFileRequest>,
 ) -> handler::UploadAPIResult<Json<handler::UploadFileResponse>> {
     // TODO: Get current
-    let res = handler::post(file_storage, lease_store, &User::template(), req).await?;
-    Ok(Json(res))
+    Ok(Json(
+        handler::post(file_storage, lease_store, &User::template(), req).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -66,17 +67,15 @@ pub async fn finish_upload<F: FileStorage, L: UploadLeaseStore>(
 impl IntoResponse for FileError {
     fn into_response(self) -> axum::response::Response {
         let (status, error_message) = match self {
-            FileError::Connection(_) => (
+            Self::Connection(_) => (
                 StatusCode::BAD_GATEWAY,
                 "Server failed to establish connection to database",
             ),
-            FileError::NameAlreadyExists(_) => {
+            Self::NameAlreadyExists(_) => {
                 (StatusCode::CONFLICT, "File with this name already exists")
             }
-            FileError::Other(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Unknown internal error"),
-            FileError::Presigning(_) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "Error during presigning")
-            }
+            Self::Other(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Unknown internal error"),
+            Self::Presigning(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Error during presigning"),
         };
 
         let body = Json(json!({ "error": error_message }));
@@ -114,7 +113,7 @@ impl IntoResponse for UploadAPIError {
             )
                 .into_response(),
             Self::NotFound(_) => (StatusCode::NOT_FOUND, "Upload lease not found").into_response(),
-            Self::Unknown => {
+            Self::NegativeSize(_) | Self::Unknown => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "Unknown internal error").into_response()
             }
         }
