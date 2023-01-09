@@ -1,4 +1,10 @@
-use axum::{response::IntoResponse, routing::post, Extension, Json, Router};
+use axum::{
+    extract::Path,
+    response::{AppendHeaders, IntoResponse},
+    routing::{get, post},
+    Extension, Json, Router,
+};
+use http::HeaderMap;
 use hyper::StatusCode;
 
 use serde_json::json;
@@ -8,6 +14,7 @@ use crate::{
     handler::files::upload::UploadAPIError,
     stores::{
         files::{
+            filesystem::Filesystem,
             storage::{FileError, FileStorage},
             UploadLeaseError, UploadLeaseStore,
         },
@@ -16,13 +23,54 @@ use crate::{
     },
 };
 
-pub fn router<F: FileStorage, L: DataStore>() -> Router {
+pub fn router<F: FileStorage + Filesystem, L: DataStore>() -> Router {
     Router::new()
         .route("/api/files/upload", post(upload_file_request::<F, L>)) // TODO: COnsider using put
         // instead of post,
         .route("/api/files/upload/finish", post(finish_upload::<F, L>))
+        .route("/api/wopi/files/:id/contents", get(wopi_hello_world))
+        .route(
+            "/api/wopi/files/:id",
+            get(wopi_check_file_info).post(wopi_post),
+        )
     //.route_layer(middleware::from_fn(auth))
     // TODO: Add auth middleware back
+}
+
+pub async fn wopi_post(_header: HeaderMap) -> impl IntoResponse {
+    println!("{:?}", _header);
+    StatusCode::OK
+}
+
+pub async fn wopi_hello_world(Path(_id): Path<String>) -> impl IntoResponse {
+    "Hello, World!"
+}
+
+// TODO: Serde PascelCase
+#[derive(serde::Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct TestWopiCheckFileInfo {
+    base_file_name: String,
+    size: u32,
+    read_only: bool,
+    user_friendly_name: String,
+    supports_locks: bool,
+    user_can_write: bool,
+    supports_update: bool,
+    is_anonymous_user: bool,
+}
+
+pub async fn wopi_check_file_info(Path(_id): Path<String>) -> impl IntoResponse {
+    Json(TestWopiCheckFileInfo {
+        base_file_name: "test.txt".to_owned(),
+        size: 11,
+        read_only: false,
+        user_friendly_name: "Tester".to_owned(),
+        supports_locks: true,
+        user_can_write: true,
+        supports_update: true,
+        is_anonymous_user: true,
+    })
 }
 
 #[utoipa::path(
@@ -71,9 +119,6 @@ impl IntoResponse for FileError {
                 StatusCode::BAD_GATEWAY,
                 "Server failed to establish connection to database",
             ),
-            Self::NameAlreadyExists(_) => {
-                (StatusCode::CONFLICT, "File with this name already exists")
-            }
             Self::Other(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Unknown internal error"),
             Self::Presigning(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Error during presigning"),
         };

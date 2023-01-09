@@ -1,6 +1,9 @@
 use std::iter::once;
 
-use crate::stores::{files::storage::FileStorage, DataStore};
+use crate::stores::{
+    files::{filesystem::Filesystem, storage::FileStorage},
+    DataStore,
+};
 use axum::{Extension, Router, Server};
 use hyper::header;
 use tower::ServiceBuilder;
@@ -15,17 +18,17 @@ use super::{
     routes::{files, users},
 };
 
-pub struct GenbuServerBuilder<S: DataStore, F: FileStorage> {
+pub struct GenbuServerBuilder<S: DataStore, F: Filesystem> {
     users: Option<S>,
     files: Option<F>,
 }
 
-pub struct GenbuServer<S: DataStore, F: FileStorage> {
+pub struct GenbuServer<S: DataStore, F: Filesystem> {
     users: S,
     files: F,
 }
 
-impl<S: DataStore, F: FileStorage + Send + Sync> GenbuServerBuilder<S, F> {
+impl<S: DataStore, F: Filesystem + Send + Sync> GenbuServerBuilder<S, F> {
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -54,13 +57,13 @@ impl<S: DataStore, F: FileStorage + Send + Sync> GenbuServerBuilder<S, F> {
     }
 }
 
-impl<S: DataStore, F: FileStorage> Default for GenbuServerBuilder<S, F> {
+impl<S: DataStore, F: Filesystem> Default for GenbuServerBuilder<S, F> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<S: DataStore, F: FileStorage> GenbuServer<S, F> {
+impl<S: DataStore, F: Filesystem> GenbuServer<S, F> {
     fn api_router() -> Router {
         users::router::<S>()
             .merge(files::router::<F, S>())

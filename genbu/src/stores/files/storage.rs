@@ -26,9 +26,6 @@ pub enum FileError {
     #[error("unable to establish a file storage connection")]
     Connection(#[source] Box<dyn Error>),
 
-    #[error("a file with this name already exists")]
-    NameAlreadyExists(#[source] Box<dyn Error>),
-
     #[error("unknown file storage error")]
     Other(#[source] Box<dyn Error>),
 
