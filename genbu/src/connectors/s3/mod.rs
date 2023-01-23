@@ -62,7 +62,7 @@ impl S3Store {
         let region_provider = RegionProviderChain::default_provider().or_else("us-east-1");
         let config = aws_config::from_env()
             .region(region_provider)
-            .endpoint_resolver(Endpoint::immutable("http://127.0.0.1:9000").unwrap())
+            .endpoint_url("http://127.0.0.1:9000")
             .load()
             .await;
         let client = Client::new(&config);
