@@ -61,7 +61,6 @@ pub type SResult<T> = Result<T, FileError>;
 pub trait FileStorage: Reset + Setup + Clone + Sized + Send + Sync + 'static {
     async fn delete_file(&mut self, bucket: Bucket, name: &str) -> SResult<()>;
     async fn get_presigned_url(&self, bucket: Bucket, name: &str) -> SResult<String>;
-    async fn get_presigned_upload_url(&self, bucket: Bucket, name: &str) -> SResult<String>;
     async fn get_presigned_upload_urls(
         &self,
         bucket: Bucket,

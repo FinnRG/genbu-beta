@@ -41,25 +41,6 @@ impl FileStorage for S3Store {
         }
     }
 
-    async fn get_presigned_upload_url(
-        &self,
-        bucket: Bucket,
-        name: &str,
-    ) -> Result<String, FileError> {
-        let expires_in = Duration::from_secs(900);
-        let presigned_request = self
-            .client
-            .put_object()
-            .bucket(bucket.to_bucket_name())
-            .key(name)
-            .presigned(PresigningConfig::expires_in(expires_in).unwrap())
-            .await;
-        match presigned_request {
-            Ok(req) => Ok(req.uri().to_string()),
-            Err(e) => new_presign_err(e),
-        }
-    }
-
     async fn get_presigned_upload_urls(
         &self,
         bucket: Bucket,

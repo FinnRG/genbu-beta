@@ -228,4 +228,3 @@ impl IntoResponse for handler::users::APIError {
         }
     }
 }
-// TODO: Separate files for routes (especially login and register)

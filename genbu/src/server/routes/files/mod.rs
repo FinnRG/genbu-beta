@@ -1,10 +1,8 @@
 use axum::{
-    extract::Path,
-    response::{AppendHeaders, IntoResponse},
+    response::IntoResponse,
     routing::{get, post},
     Extension, Json, Router,
 };
-use http::HeaderMap;
 use hyper::StatusCode;
 
 use serde_json::json;
@@ -23,6 +21,10 @@ use crate::{
     },
 };
 
+use self::wopi::Wopi;
+
+pub mod wopi;
+
 pub fn router<F: FileStorage + Filesystem, L: DataStore>() -> Router {
     Router::new()
         .route("/api/files/upload", post(upload_file_request::<F, L>)) // TODO: COnsider using put
@@ -37,12 +39,13 @@ pub fn router<F: FileStorage + Filesystem, L: DataStore>() -> Router {
     // TODO: Add auth middleware back
 }
 
-pub async fn wopi_post(_header: HeaderMap) -> impl IntoResponse {
-    println!("{:?}", _header);
+pub async fn wopi_post(Wopi(req): Wopi<axum::body::Body>) -> impl IntoResponse {
+    println!("wopi_post: {:?}", req.file_id);
     StatusCode::OK
 }
 
-pub async fn wopi_hello_world(Path(_id): Path<String>) -> impl IntoResponse {
+pub async fn wopi_hello_world(Wopi(req): Wopi<axum::body::Body>) -> impl IntoResponse {
+    println!("wopi_hello_world: {:?}", req);
     "Hello, World!"
 }
 
@@ -60,7 +63,8 @@ struct TestWopiCheckFileInfo {
     is_anonymous_user: bool,
 }
 
-pub async fn wopi_check_file_info(Path(_id): Path<String>) -> impl IntoResponse {
+pub async fn wopi_check_file_info(Wopi(req): Wopi<axum::body::Body>) -> impl IntoResponse {
+    println!("WOPI Req: {:?}", req.request);
     Json(TestWopiCheckFileInfo {
         base_file_name: "test.txt".to_owned(),
         size: 11,

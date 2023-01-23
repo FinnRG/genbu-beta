@@ -13,5 +13,4 @@ create table "upload_lease" (
     constraint fk_user
         foreign key(owner)
             references "user"(id)
-            on delete cascade
 )
