@@ -6,6 +6,8 @@ use crate::server::routes::{
     files,
     users::{self, UserResponse},
 };
+use crate::stores::files::database::LeaseID;
+use crate::stores::files::storage::Part;
 use crate::stores::users::{User, UserAvatar};
 use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
@@ -24,7 +26,7 @@ use utoipa::{
         files::upload_file_request,
         files::finish_upload
     ),
-    components(schemas(User, UserAvatar, CreateUserRequest, LoginRequest, UserResponse, UploadFileRequest, UploadFileResponse,  FinishUploadRequest, GetUrisRequest)),
+    components(schemas(User, UserAvatar, CreateUserRequest, LoginRequest, UserResponse, UploadFileRequest, UploadFileResponse,  FinishUploadRequest, GetUrisRequest, Part, LeaseID)),
     modifiers(&SecurityAddon),
     security(
         ("token" = [])

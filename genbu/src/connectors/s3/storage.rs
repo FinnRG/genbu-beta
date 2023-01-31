@@ -1,13 +1,13 @@
 use std::time::Duration;
 
 use aws_sdk_s3::{
-    model::{CompletedMultipartUpload, CompletedPart, Part},
+    model::{CompletedMultipartUpload, CompletedPart},
     presigning::config::PresigningConfig,
-    types::SdkError,
+    types::{ByteStream, SdkError},
 };
 
 use crate::stores::files::{
-    storage::{Bucket, FileError, InvalidPartSize, PresignError},
+    storage::{Bucket, FileError, InvalidPartSize, Part, PresignError},
     FileStorage,
 };
 
@@ -24,21 +24,6 @@ impl FileStorage for S3Store {
             .send()
             .await;
         res.map(|_| ()).map_err(map_sdk_err)
-    }
-
-    async fn get_presigned_url(&self, bucket: Bucket, name: &str) -> Result<String, FileError> {
-        let expires_in = Duration::from_secs(20);
-        let presigned_request = self
-            .client
-            .get_object()
-            .bucket(bucket.to_bucket_name())
-            .key(name)
-            .presigned(PresigningConfig::expires_in(expires_in).unwrap())
-            .await;
-        match presigned_request {
-            Ok(req) => Ok(req.uri().to_string()),
-            Err(e) => new_presign_err(e),
-        }
     }
 
     async fn get_presigned_upload_urls(
@@ -97,22 +82,20 @@ impl FileStorage for S3Store {
         bucket: Bucket,
         file: &str,
         upload_id: &str,
+        parts: Vec<Part>,
     ) -> Result<(), FileError> {
-        let parts = self
-            .client
-            .list_parts()
-            .bucket(bucket.to_bucket_name())
-            .upload_id(upload_id)
-            .key(file)
-            .send()
-            .await
-            .map_err(map_sdk_err)?;
         let completed_multipart_upload = CompletedMultipartUpload::builder()
-            .set_parts(
+            .set_parts(Some(
                 parts
-                    .parts()
-                    .map(|parts| parts.iter().map(part_to_completed).collect()),
-            )
+                    .into_iter()
+                    .map(|part| {
+                        CompletedPart::builder()
+                            .set_e_tag(Some(part.e_tag))
+                            .set_part_number(Some(part.part_number))
+                            .build()
+                    })
+                    .collect(),
+            ))
             .build();
         self.client
             .complete_multipart_upload()
@@ -125,17 +108,18 @@ impl FileStorage for S3Store {
             .map(|_| ())
             .map_err(map_sdk_err)
     }
-}
 
-fn part_to_completed(p: &Part) -> CompletedPart {
-    CompletedPart::builder()
-        .set_e_tag(p.e_tag().map(Into::into))
-        .part_number(p.part_number())
-        .set_checksum_sha1(p.checksum_sha1().map(Into::into))
-        .set_checksum_crc32(p.checksum_crc32().map(Into::into))
-        .set_checksum_sha256(p.checksum_sha256().map(Into::into))
-        .set_checksum_crc32_c(p.checksum_crc32_c().map(Into::into))
-        .build()
+    async fn upload(&mut self, bucket: Bucket, name: &str, data: Vec<u8>) -> Result<(), FileError> {
+        self.client
+            .put_object()
+            .bucket(bucket.to_bucket_name())
+            .key(name)
+            .body(ByteStream::from(data))
+            .send()
+            .await
+            .map(|_| ())
+            .map_err(map_sdk_err)
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

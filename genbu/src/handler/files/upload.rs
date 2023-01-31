@@ -4,8 +4,9 @@ use thiserror::Error;
 
 use crate::stores::{
     files::{
-        database::LeaseID, storage::FileError, FileStorage, UploadLease, UploadLeaseError,
-        UploadLeaseStore,
+        database::LeaseID,
+        storage::{FileError, Part},
+        FileStorage, UploadLease, UploadLeaseError, UploadLeaseStore,
     },
     users::User,
 };
@@ -117,6 +118,7 @@ async fn get_presigned_upload_urls(
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct FinishUploadRequest {
     lease_id: LeaseID,
+    parts: Vec<Part>,
 }
 
 pub async fn finish_upload(
@@ -130,7 +132,12 @@ pub async fn finish_upload(
     };
 
     file_storage
-        .finish_multipart_upload(lease.bucket, &lease.name, &lease.s3_upload_id)
+        .finish_multipart_upload(
+            lease.bucket,
+            &lease.name,
+            &lease.s3_upload_id,
+            finish_req.parts,
+        )
         .await?;
     Ok(())
 }

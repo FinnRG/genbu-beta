@@ -110,7 +110,10 @@ fn start_session_response(id: Uuid) -> Result<impl IntoResponse, StatusCode> {
         .finish();
     let set_cookie_header = HeaderValue::from_str(&cookie.to_string())
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(AppendHeaders([(header::SET_COOKIE, set_cookie_header)]))
+    Ok((
+        AppendHeaders([(header::SET_COOKIE, set_cookie_header)]),
+        Json(UserResponse { id }),
+    ))
 }
 
 // TODO: Better logging

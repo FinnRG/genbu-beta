@@ -7,7 +7,6 @@ use super::FileStorage;
 #[derive(Clone, Debug, oso::PolarClass, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct Userfile {
     pub name: String,
-    // TODO: Is this really important?
     pub owner: Uuid,
     pub is_folder: bool,
 }
@@ -26,6 +25,7 @@ pub enum FilesystemError {
 
 pub type SResult<T> = Result<T, FilesystemError>;
 
+#[async_trait::async_trait]
 pub trait Filesystem: FileStorage {
     async fn list(&self, user_id: Uuid, base_path: &str) -> SResult<Vec<Userfile>>;
     async fn delete(&mut self, path: &str) -> SResult<()>;

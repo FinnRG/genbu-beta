@@ -3,15 +3,18 @@ use axum::{
     routing::{get, post},
     Extension, Json, Router,
 };
+use bytes::Bytes;
+use http::Response;
 use hyper::StatusCode;
 
 use serde_json::json;
 
 use crate::{
     handler::files::upload as handler,
-    handler::files::upload::UploadAPIError,
+    handler::files::{upload::UploadAPIError, wopi as wopi_handler},
     stores::{
         files::{
+            database::DBFileStore,
             filesystem::Filesystem,
             storage::{FileError, FileStorage},
             UploadLeaseError, UploadLeaseStore,
@@ -21,7 +24,7 @@ use crate::{
     },
 };
 
-use self::wopi::Wopi;
+use self::wopi::{Wopi, WopiResponse};
 
 pub mod wopi;
 
@@ -30,51 +33,23 @@ pub fn router<F: FileStorage + Filesystem, L: DataStore>() -> Router {
         .route("/api/files/upload", post(upload_file_request::<F, L>)) // TODO: COnsider using put
         // instead of post,
         .route("/api/files/upload/finish", post(finish_upload::<F, L>))
-        .route("/api/wopi/files/:id/contents", get(wopi_hello_world))
+        // .route("/api/wopi/files/:id/contents", get(todo!()))
         .route(
             "/api/wopi/files/:id",
-            get(wopi_check_file_info).post(wopi_post),
+            get(wopi_check_file_info::<F, L>), // .post(todo!())
         )
     //.route_layer(middleware::from_fn(auth))
     // TODO: Add auth middleware back
 }
 
-pub async fn wopi_post(Wopi(req): Wopi<axum::body::Body>) -> impl IntoResponse {
-    println!("wopi_post: {:?}", req.file_id);
-    StatusCode::OK
-}
-
-pub async fn wopi_hello_world(Wopi(req): Wopi<axum::body::Body>) -> impl IntoResponse {
-    println!("wopi_hello_world: {:?}", req);
-    "Hello, World!"
-}
-
-// TODO: Serde PascelCase
-#[derive(serde::Serialize)]
-#[serde(rename_all = "PascalCase")]
-struct TestWopiCheckFileInfo {
-    base_file_name: String,
-    size: u32,
-    read_only: bool,
-    user_friendly_name: String,
-    supports_locks: bool,
-    user_can_write: bool,
-    supports_update: bool,
-    is_anonymous_user: bool,
-}
-
-pub async fn wopi_check_file_info(Wopi(req): Wopi<axum::body::Body>) -> impl IntoResponse {
-    println!("WOPI Req: {:?}", req.request);
-    Json(TestWopiCheckFileInfo {
-        base_file_name: "test.txt".to_owned(),
-        size: 11,
-        read_only: false,
-        user_friendly_name: "Tester".to_owned(),
-        supports_locks: true,
-        user_can_write: true,
-        supports_update: true,
-        is_anonymous_user: true,
-    })
+pub async fn wopi_check_file_info<F: Filesystem, D: DBFileStore>(
+    Extension(file_storage): Extension<F>,
+    Extension(db_file_store): Extension<D>,
+    Wopi(req): Wopi<Bytes>,
+) -> impl IntoResponse {
+    let user = User::template();
+    let resp = wopi_handler::wopi_file(file_storage, db_file_store, &user, req).await;
+    WopiResponse(resp)
 }
 
 #[utoipa::path(
@@ -92,7 +67,7 @@ pub async fn upload_file_request<F: FileStorage, L: UploadLeaseStore>(
     Extension(lease_store): Extension<L>,
     Json(req): Json<handler::UploadFileRequest>,
 ) -> handler::UploadAPIResult<Json<handler::UploadFileResponse>> {
-    // TODO: Get current
+    // TODO: Get current user
     Ok(Json(
         handler::post(file_storage, lease_store, &User::template(), req).await?,
     ))

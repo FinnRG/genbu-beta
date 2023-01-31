@@ -55,12 +55,17 @@ impl Bucket {
     }
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct Part {
+    pub e_tag: String,
+    pub part_number: i32,
+}
+
 pub type SResult<T> = Result<T, FileError>;
 
-#[async_trait]
+#[async_trait::async_trait]
 pub trait FileStorage: Reset + Setup + Clone + Sized + Send + Sync + 'static {
     async fn delete_file(&mut self, bucket: Bucket, name: &str) -> SResult<()>;
-    async fn get_presigned_url(&self, bucket: Bucket, name: &str) -> SResult<String>;
     async fn get_presigned_upload_urls(
         &self,
         bucket: Bucket,
@@ -73,5 +78,7 @@ pub trait FileStorage: Reset + Setup + Clone + Sized + Send + Sync + 'static {
         bucket: Bucket,
         name: &str,
         upload_id: &str,
+        parts: Vec<Part>,
     ) -> SResult<()>;
+    async fn upload(&mut self, bucket: Bucket, name: &str, data: Vec<u8>) -> SResult<()>;
 }

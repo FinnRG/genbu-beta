@@ -1,9 +1,13 @@
 use async_trait::async_trait;
 use parking_lot::Mutex;
 use std::{collections::HashMap, sync::Arc};
+use time::{Duration, OffsetDateTime};
 
 use crate::stores::{
-    files::{database::LeaseID, UploadLease, UploadLeaseError, UploadLeaseStore},
+    files::{
+        database::{DBFile, DBFileError, DBFileStore, FileLock, FileResult, LeaseID},
+        UploadLease, UploadLeaseError, UploadLeaseStore,
+    },
     users::{SResult, User, UserError, UserStore, UserUpdate},
     DataStore, Reset, Setup, Uuid,
 };
@@ -12,6 +16,7 @@ use crate::stores::{
 pub struct MemStore {
     users: Arc<Mutex<HashMap<Uuid, User>>>,
     upload: Arc<Mutex<HashMap<LeaseID, UploadLease>>>,
+    db_files: Arc<Mutex<HashMap<LeaseID, DBFile>>>,
 }
 
 impl MemStore {
@@ -122,6 +127,51 @@ impl UploadLeaseStore for MemStore {
         lease.completed = true;
         upload.insert(*id, lease.clone());
         Ok(Some(lease))
+    }
+}
+
+#[async_trait]
+impl DBFileStore for MemStore {
+    async fn get_dbfile(&self, file_id: Uuid) -> FileResult<Option<DBFile>> {
+        FileResult::Ok(
+            self.db_files
+                .lock()
+                .get(&LeaseID(file_id))
+                .map(Clone::clone),
+        )
+    }
+    async fn add_dbfile(&mut self, file: &DBFile) -> FileResult<DBFile> {
+        self.db_files.lock().insert(file.id, file.clone());
+        FileResult::Ok(file.clone())
+    }
+    async fn lock(&mut self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>> {
+        let mut db_files = self.db_files.lock();
+        let Some(entr) = db_files.get_mut(&LeaseID(file_id)) else {
+            return Ok(None);
+        };
+
+        match (entr.lock.as_ref(), entr.lock_expires_at) {
+            (None, _) => {
+                entr.lock = Some(lock);
+                entr.lock_expires_at = Some(OffsetDateTime::now_utc() + Duration::minutes(30));
+            }
+            (_, Some(t)) if t < OffsetDateTime::now_utc() => {
+                entr.lock = Some(lock);
+                entr.lock_expires_at = Some(OffsetDateTime::now_utc() + Duration::minutes(30));
+            }
+            (Some(l), _) if l == &lock => {
+                entr.lock_expires_at = Some(OffsetDateTime::now_utc() + Duration::minutes(30));
+            }
+            (Some(l), _) => return Err(DBFileError::Locked(Some(l.clone()))),
+        };
+
+        Ok(Some(()))
+    }
+    async fn unlock(&mut self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>> {
+        todo!()
+    }
+    async fn extend_lock(&mut self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>> {
+        todo!()
     }
 }
 

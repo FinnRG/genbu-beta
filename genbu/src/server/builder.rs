@@ -1,9 +1,6 @@
 use std::iter::once;
 
-use crate::stores::{
-    files::{filesystem::Filesystem, storage::FileStorage},
-    DataStore,
-};
+use crate::stores::{files::filesystem::Filesystem, DataStore};
 use axum::{Extension, Router, Server};
 use hyper::header;
 use tower::ServiceBuilder;

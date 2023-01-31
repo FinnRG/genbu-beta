@@ -5,7 +5,7 @@ use aws_sdk_s3::types::SdkError;
 use crate::stores::{
     files::{
         filesystem::{Filesystem, FilesystemError, SResult, Userfile},
-        storage::{Bucket, FileError},
+        storage::Bucket,
     },
     Uuid,
 };
@@ -21,6 +21,7 @@ fn map_sdk_err<E: Error + Send + Sync + 'static, R: Debug + Send + Sync + 'stati
     }
 }
 
+#[async_trait::async_trait]
 impl Filesystem for S3Store {
     async fn list(&self, user_id: Uuid, base_path: &str) -> SResult<Vec<Userfile>> {
         let resp = self
