@@ -1,5 +1,7 @@
 use std::error::Error;
 
+use time::{serde::iso8601::option as iso8601, OffsetDateTime};
+
 use crate::stores::Uuid;
 
 use super::FileStorage;
@@ -7,6 +9,8 @@ use super::FileStorage;
 #[derive(Clone, Debug, oso::PolarClass, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct Userfile {
     pub name: String,
+    #[serde(with = "iso8601")]
+    pub last_modified: Option<OffsetDateTime>,
     pub owner: Uuid,
     pub is_folder: bool,
 }

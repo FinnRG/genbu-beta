@@ -1,6 +1,7 @@
 use std::{error::Error, fmt::Debug};
 
 use aws_sdk_s3::types::SdkError;
+use aws_smithy_types_convert::date_time::DateTimeExt;
 
 use crate::stores::{
     files::{
@@ -39,6 +40,7 @@ impl Filesystem for S3Store {
             .iter()
             .map(|object| Userfile {
                 name: object.key.clone().unwrap_or_default(),
+                last_modified: object.last_modified.and_then(|t| t.to_time().ok()),
                 owner: user_id,
                 is_folder: false,
             })
@@ -48,6 +50,7 @@ impl Filesystem for S3Store {
                     .iter()
                     .map(|common_prefix| Userfile {
                         name: common_prefix.prefix.clone().unwrap_or_default(),
+                        last_modified: None,
                         owner: user_id,
                         is_folder: true,
                     }),

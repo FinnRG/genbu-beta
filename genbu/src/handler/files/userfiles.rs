@@ -17,7 +17,9 @@ pub enum UserfilesAPIError {
 pub type UserfilesAPIResult<T> = std::result::Result<T, UserfilesAPIError>;
 type Result<T> = UserfilesAPIResult<T>;
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(
+    Clone, Debug, serde::Serialize, serde::Deserialize, utoipa::ToSchema, utoipa::IntoParams,
+)]
 pub struct GetUserfilesRequest {
     base_path: String,
 }
@@ -29,11 +31,14 @@ pub struct GetUserfilesResponse {
 
 pub async fn get_userfiles(
     filesystem: impl Filesystem,
-    user: &User,
+    user_id: Uuid,
     get_req: &GetUserfilesRequest,
 ) -> Result<GetUserfilesResponse> {
-    let path = build_path(user.id, &get_req.base_path);
-    let files = filesystem.list(user.id, &path).await?;
+    let path = build_path(user_id, &get_req.base_path);
+    let mut files = filesystem.list(user_id, &path).await?;
+    files
+        .iter_mut()
+        .for_each(|f| f.name = f.name.split_off(build_path(user_id, "").len()));
     Ok(GetUserfilesResponse { files })
 }
 
@@ -53,5 +58,5 @@ pub async fn delete_userfile(
 }
 
 fn build_path(user_id: Uuid, path: &str) -> String {
-    format!("{}/{}", user_id, path.deref())
+    format!("{}/{}", user_id, path.deref().trim_end_matches('/'))
 }

@@ -2,7 +2,7 @@ use std::{error::Error, fmt::Debug};
 
 use async_trait::async_trait;
 use aws_config::meta::region::RegionProviderChain;
-use aws_sdk_s3::{types::SdkError, Client, Endpoint};
+use aws_sdk_s3::{types::SdkError, Client};
 
 use crate::stores::{
     files::storage::{Bucket, FileError},

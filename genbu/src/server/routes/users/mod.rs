@@ -103,7 +103,7 @@ async fn create_user<DS: DataStore>(
 fn start_session_response(id: Uuid) -> Result<impl IntoResponse, StatusCode> {
     let token = authn::create_jwt(id)?;
 
-    let cookie = Cookie::build("__Host-Token", token)
+    let cookie = Cookie::build("Token", token)
         .secure(true)
         .http_only(true)
         .same_site(SameSite::Strict)

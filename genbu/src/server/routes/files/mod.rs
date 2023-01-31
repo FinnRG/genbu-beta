@@ -1,21 +1,25 @@
 use axum::{
+    middleware,
     response::IntoResponse,
     routing::{get, post},
     Extension, Json, Router,
 };
 use bytes::Bytes;
+use genbu_auth::authn::Claims;
 use http::Response;
 use hyper::StatusCode;
 
 use serde_json::json;
+use tracing::error;
 
 use crate::{
     handler::files::upload as handler,
-    handler::files::{upload::UploadAPIError, wopi as wopi_handler},
+    handler::files::{upload::UploadAPIError, userfiles::UserfilesAPIError, wopi as wopi_handler},
+    server::middlewares::auth::auth,
     stores::{
         files::{
             database::DBFileStore,
-            filesystem::Filesystem,
+            filesystem::{Filesystem, FilesystemError},
             storage::{FileError, FileStorage},
             UploadLeaseError, UploadLeaseStore,
         },
@@ -26,10 +30,12 @@ use crate::{
 
 use self::wopi::{Wopi, WopiResponse};
 
+pub mod userfiles;
 pub mod wopi;
 
 pub fn router<F: FileStorage + Filesystem, L: DataStore>() -> Router {
     Router::new()
+        .merge(userfiles::router::<F>())
         .route("/api/files/upload", post(upload_file_request::<F, L>)) // TODO: COnsider using put
         // instead of post,
         .route("/api/files/upload/finish", post(finish_upload::<F, L>))
@@ -38,7 +44,7 @@ pub fn router<F: FileStorage + Filesystem, L: DataStore>() -> Router {
             "/api/wopi/files/:id",
             get(wopi_check_file_info::<F, L>), // .post(todo!())
         )
-    //.route_layer(middleware::from_fn(auth))
+        .route_layer(middleware::from_fn(auth))
     // TODO: Add auth middleware back
 }
 
@@ -65,11 +71,11 @@ pub async fn wopi_check_file_info<F: Filesystem, D: DBFileStore>(
 pub async fn upload_file_request<F: FileStorage, L: UploadLeaseStore>(
     Extension(file_storage): Extension<F>,
     Extension(lease_store): Extension<L>,
+    Extension(user): Extension<Claims>,
     Json(req): Json<handler::UploadFileRequest>,
 ) -> handler::UploadAPIResult<Json<handler::UploadFileResponse>> {
-    // TODO: Get current user
     Ok(Json(
-        handler::post(file_storage, lease_store, &User::template(), req).await?,
+        handler::post(file_storage, lease_store, user.sub, req).await?,
     ))
 }
 
@@ -140,6 +146,32 @@ impl IntoResponse for UploadAPIError {
             Self::NegativeSize(_) | Self::Unknown => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "Unknown internal error").into_response()
             }
+        }
+    }
+}
+
+impl IntoResponse for FilesystemError {
+    fn into_response(self) -> axum::response::Response {
+        match self {
+            Self::FileAlreadyExists(e) => {
+                (StatusCode::CONFLICT, format!("File {e} already exists")).into_response()
+            }
+            Self::Connection(_) => {
+                (StatusCode::BAD_GATEWAY, "Unable to connect to database").into_response()
+            }
+            FilesystemError::Other(e) => {
+                error!("Unknown filesystem error {e:?}");
+                (StatusCode::INTERNAL_SERVER_ERROR, "Unknown internal error").into_response()
+            }
+        }
+    }
+}
+
+impl IntoResponse for UserfilesAPIError {
+    fn into_response(self) -> axum::response::Response {
+        match self {
+            Self::NotFound(_) => (StatusCode::NOT_FOUND, "User file not found").into_response(),
+            Self::Filesystem(e) => e.into_response(),
         }
     }
 }

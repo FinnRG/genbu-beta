@@ -29,6 +29,7 @@ impl From<sqlx::Error> for UploadLeaseError {
 
 #[async_trait::async_trait]
 impl UploadLeaseStore for PgStore {
+    #[tracing::instrument(skip(self), err(Debug))]
     async fn add(&mut self, lease: &UploadLease) -> SResult<UploadLease> {
         let res = sqlx::query_as!(
             UploadLease,
@@ -37,8 +38,8 @@ impl UploadLeaseStore for PgStore {
                 returning id as "id: LeaseID",owner,s3_upload_id,name,bucket as "bucket: Bucket",completed,size,created_at,expires_at"#,
             lease.id as _,
             lease.owner,
-            lease.s3_upload_id,
             lease.name,
+            lease.s3_upload_id,
             lease.bucket as _,
             lease.size,
             lease.expires_at
@@ -87,7 +88,7 @@ impl UploadLeaseStore for PgStore {
         let Some(lease) = lease else {
             return Ok(None);
         };
-        if OffsetDateTime::now_utc() < lease.expires_at {
+        if OffsetDateTime::now_utc() > lease.expires_at {
             return Err(UploadLeaseError::LeaseExpired(*id));
         }
 

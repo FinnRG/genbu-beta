@@ -83,7 +83,7 @@ impl<S: DataStore, F: Filesystem> GenbuServer<S, F> {
         }
         #[cfg(debug_assertions)]
         {
-            app = app.layer(CorsLayer::permissive());
+            app = app.layer(CorsLayer::very_permissive());
         }
         app
     }

@@ -85,18 +85,15 @@ pub fn verify_password(password: &SecretString, hash: &str) -> Result<bool, Hash
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Claims {
-    sub: String,
-    exp: i64,
+    pub sub: Uuid,
+    pub exp: i64,
 }
 
 impl Claims {
     #[must_use]
-    pub fn new(id: Uuid) -> Self {
+    pub fn new(sub: Uuid) -> Self {
         let exp = OffsetDateTime::now_utc().add(6.hours()).unix_timestamp();
-        Self {
-            sub: id.to_string(),
-            exp,
-        }
+        Self { sub, exp }
     }
 }
 

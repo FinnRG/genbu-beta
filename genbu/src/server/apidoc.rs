@@ -1,12 +1,14 @@
 use crate::handler::files::upload::{
     FinishUploadRequest, GetUrisRequest, UploadFileRequest, UploadFileResponse,
 };
+use crate::handler::files::userfiles::{GetUserfilesRequest, GetUserfilesResponse};
 use crate::handler::users::{auth::LoginRequest, CreateUserRequest};
 use crate::server::routes::{
-    files,
+    files::{self, userfiles},
     users::{self, UserResponse},
 };
 use crate::stores::files::database::LeaseID;
+use crate::stores::files::filesystem::Userfile;
 use crate::stores::files::storage::Part;
 use crate::stores::users::{User, UserAvatar};
 use utoipa::{
@@ -24,9 +26,10 @@ use utoipa::{
         users::register,
         users::login,
         files::upload_file_request,
-        files::finish_upload
+        files::finish_upload,
+        userfiles::get_userfiles
     ),
-    components(schemas(User, UserAvatar, CreateUserRequest, LoginRequest, UserResponse, UploadFileRequest, UploadFileResponse,  FinishUploadRequest, GetUrisRequest, Part, LeaseID)),
+    components(schemas(User, UserAvatar, CreateUserRequest, LoginRequest, UserResponse, UploadFileRequest, UploadFileResponse,  FinishUploadRequest, GetUrisRequest, Part, LeaseID, GetUserfilesRequest, GetUserfilesResponse, Userfile)),
     modifiers(&SecurityAddon),
     security(
         ("token" = [])
@@ -41,7 +44,7 @@ impl Modify for SecurityAddon {
         if let Some(components) = openapi.components.as_mut() {
             components.add_security_scheme(
                 "token",
-                SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::new("__Host-Token"))),
+                SecurityScheme::ApiKey(ApiKey::Cookie(ApiKeyValue::new("Token"))),
             );
         }
     }
