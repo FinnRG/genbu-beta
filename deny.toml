@@ -175,7 +175,7 @@ allow = [
 # List of crates to deny
 deny = [
     { name = "openssl-sys" },
-    { name = "anyhow" }
+    { name = "anyhow" },
     # Each entry the name of a crate and a version range. If version is
     # not specified, all versions will be matched.
     #{ name = "ansi_term", version = "=0.11.0" },

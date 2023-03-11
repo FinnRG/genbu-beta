@@ -5,6 +5,7 @@ use aws_sdk_s3::{
     presigning::config::PresigningConfig,
     types::{ByteStream, SdkError},
 };
+use tracing::error;
 
 use crate::stores::files::{
     storage::{Bucket, FileError, InvalidPartSize, Part, PresignError},
@@ -26,6 +27,18 @@ impl FileStorage for S3Store {
         res.map(|_| ()).map_err(map_sdk_err)
     }
 
+    async fn get_download_url(&self, bucket: Bucket, name: &str) -> Result<String, FileError> {
+        let res = self
+            .client
+            .get_object()
+            .bucket(bucket.to_bucket_name())
+            .key(name)
+            .set_response_content_disposition(Some("attachment".to_owned()))
+            .presigned(PresigningConfig::expires_in(Duration::from_secs(1800)).unwrap())
+            .await;
+        res.map(|r| r.uri().to_string()).map_err(map_sdk_err)
+    }
+
     async fn get_presigned_upload_urls(
         &self,
         bucket: Bucket,
@@ -36,7 +49,7 @@ impl FileStorage for S3Store {
         let mut chunk_count = (file_size / chunk_size) + 1;
         let size_of_last_chunk = file_size % chunk_size;
 
-        if size_of_last_chunk == 0 {
+        if chunk_count > 1 && size_of_last_chunk == 0 {
             chunk_count -= 1;
         }
 
@@ -51,6 +64,7 @@ impl FileStorage for S3Store {
             .await
             .map_err(map_sdk_err)?;
         let Some(upload_id) = multipart_upload.upload_id() else {
+            error!("Failed to retrive upload id");
             return Err(FileError::Other(Box::new(NoUploadId)));
         };
 

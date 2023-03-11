@@ -30,10 +30,10 @@ impl Filesystem for S3Store {
             .list_objects_v2()
             .bucket(Bucket::UserFiles.to_bucket_name())
             .prefix(base_path.to_owned())
-            .delimiter("/".to_owned())
+            .delimiter("\\".to_owned())
             .send()
             .await
-            .map_err(|e| map_sdk_err(e))?;
+            .map_err(map_sdk_err)?;
         Ok(resp
             .contents
             .unwrap_or_default()
@@ -42,6 +42,7 @@ impl Filesystem for S3Store {
                 name: object.key.clone().unwrap_or_default(),
                 last_modified: object.last_modified.and_then(|t| t.to_time().ok()),
                 owner: user_id,
+                size: Some(object.size),
                 is_folder: false,
             })
             .chain(
@@ -52,20 +53,20 @@ impl Filesystem for S3Store {
                         name: common_prefix.prefix.clone().unwrap_or_default(),
                         last_modified: None,
                         owner: user_id,
+                        size: None,
                         is_folder: true,
                     }),
             )
             .collect())
     }
     async fn delete(&mut self, path: &str) -> SResult<()> {
-        let resp = self
-            .client
+        self.client
             .delete_object()
             .bucket(Bucket::UserFiles.to_bucket_name())
             .key(path)
             .send()
             .await
-            .map_err(|e| map_sdk_err(e))?;
+            .map_err(map_sdk_err)?;
         Ok(())
     }
 }

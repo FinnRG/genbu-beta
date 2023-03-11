@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use std::error::Error;
 
 pub mod files;
+pub mod groups;
 pub mod users;
 
 pub type Uuid = uuid::Uuid;

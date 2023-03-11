@@ -12,6 +12,8 @@ pub struct Userfile {
     #[serde(with = "iso8601")]
     pub last_modified: Option<OffsetDateTime>,
     pub owner: Uuid,
+    /// Size is only None if is_folder is true
+    pub size: Option<i64>,
     pub is_folder: bool,
 }
 

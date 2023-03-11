@@ -2,7 +2,9 @@ use std::fmt::Debug;
 
 use genbu_auth::authn::{self, HashError};
 use secrecy::SecretString;
+use serde::Deserialize;
 use thiserror::Error;
+use utoipa::ToSchema;
 
 pub mod auth;
 
@@ -62,7 +64,7 @@ pub async fn delete<US: UserStore>(mut user_store: US, user_id: Uuid) -> Result<
         .ok_or(APIError::NotFound(user_id.to_string()))
 }
 
-#[derive(Clone, serde::Deserialize, utoipa::ToSchema)]
+#[derive(Clone, Deserialize, ToSchema)]
 pub struct CreateUserRequest {
     name: String,
     email: String,

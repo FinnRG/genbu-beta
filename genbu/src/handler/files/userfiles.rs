@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
+
 use crate::stores::{
     files::filesystem::{Filesystem, FilesystemError, Userfile},
-    users::User,
     Uuid,
 };
 use std::{fmt::Debug, ops::Deref};
@@ -17,18 +19,17 @@ pub enum UserfilesAPIError {
 pub type UserfilesAPIResult<T> = std::result::Result<T, UserfilesAPIError>;
 type Result<T> = UserfilesAPIResult<T>;
 
-#[derive(
-    Clone, Debug, serde::Serialize, serde::Deserialize, utoipa::ToSchema, utoipa::IntoParams,
-)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema, IntoParams)]
 pub struct GetUserfilesRequest {
-    base_path: String,
+    pub base_path: String,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct GetUserfilesResponse {
-    files: Vec<Userfile>,
+    pub files: Vec<Userfile>,
 }
 
+#[tracing::instrument(skip_all)]
 pub async fn get_userfiles(
     filesystem: impl Filesystem,
     user_id: Uuid,
@@ -42,21 +43,21 @@ pub async fn get_userfiles(
     Ok(GetUserfilesResponse { files })
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema, IntoParams)]
 pub struct DeleteUserfileRequest {
     path: String,
 }
 
 pub async fn delete_userfile(
     mut filesystem: impl Filesystem,
-    user: &User,
+    user_id: Uuid,
     delete_req: DeleteUserfileRequest,
 ) -> Result<()> {
-    let path = build_path(user.id, &delete_req.path);
+    let path = build_path(user_id, &delete_req.path);
     filesystem.delete(&path).await?;
     Ok(())
 }
 
-fn build_path(user_id: Uuid, path: &str) -> String {
-    format!("{}/{}", user_id, path.deref().trim_end_matches('/'))
+pub fn build_path(user_id: Uuid, path: &str) -> String {
+    format!("{}\\{}", user_id, path.deref())
 }

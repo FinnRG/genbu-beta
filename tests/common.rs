@@ -53,6 +53,7 @@ pub async fn response_json(resp: &mut axum::http::Response<BoxBody>) -> serde_js
     serde_json::from_slice(&bytes).expect("failed to read response body as json")
 }
 
+#[derive(Clone)]
 pub struct TestClient {
     app: Router,
     token: Option<HeaderValue>,
@@ -69,6 +70,20 @@ impl TestClient {
         let resp = self
             .request(Request::post("/api/register").json(json! {{
                 "name": "TestUser",
+                "email": "test@example.com",
+                "password": "strong_password"
+            }}))
+            .await;
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert!(resp.headers().contains_key(header::SET_COOKIE));
+
+        self.token = Some(resp.headers().get(header::SET_COOKIE).unwrap().clone());
+    }
+
+    pub async fn login_default(&mut self) {
+        let resp = self
+            .request(Request::post("/api/login").json(json! {{
                 "email": "test@example.com",
                 "password": "strong_password"
             }}))

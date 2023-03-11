@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, fmt::Display};
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -96,9 +96,11 @@ impl FileLock {
     pub fn new() -> Self {
         FileLock(Uuid::new_v4().to_string())
     }
+}
 
-    pub fn to_string(self) -> String {
-        self.0
+impl Display for FileLock {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
     }
 }
 

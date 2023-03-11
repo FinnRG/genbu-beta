@@ -1,12 +1,12 @@
 use axum::{
+    extract::Query,
     middleware,
-    response::IntoResponse,
+    response::{IntoResponse, Redirect},
     routing::{get, post},
     Extension, Json, Router,
 };
 use bytes::Bytes;
 use genbu_auth::authn::Claims;
-use http::Response;
 use hyper::StatusCode;
 
 use serde_json::json;
@@ -14,7 +14,13 @@ use tracing::error;
 
 use crate::{
     handler::files::upload as handler,
-    handler::files::{upload::UploadAPIError, userfiles::UserfilesAPIError, wopi as wopi_handler},
+    handler::files::{
+        download as download_handler,
+        download::{DownloadAPIError, StartDownloadRequest},
+        upload::UploadAPIError,
+        userfiles::UserfilesAPIError,
+        wopi as wopi_handler,
+    },
     server::middlewares::auth::auth,
     stores::{
         files::{
@@ -36,6 +42,7 @@ pub mod wopi;
 pub fn router<F: FileStorage + Filesystem, L: DataStore>() -> Router {
     Router::new()
         .merge(userfiles::router::<F>())
+        .route("/api/files/download", get(start_download::<F>))
         .route("/api/files/upload", post(upload_file_request::<F, L>)) // TODO: COnsider using put
         // instead of post,
         .route("/api/files/upload/finish", post(finish_upload::<F, L>))
@@ -46,6 +53,24 @@ pub fn router<F: FileStorage + Filesystem, L: DataStore>() -> Router {
         )
         .route_layer(middleware::from_fn(auth))
     // TODO: Add auth middleware back
+}
+
+#[utoipa::path(
+    get,
+    tag = "files",
+    path = "/api/files/download",
+    params(StartDownloadRequest),
+    responses(
+        (status = 307, description = "Redirect to file location")
+    )
+)]
+pub async fn start_download<F: Filesystem>(
+    Extension(file_storage): Extension<F>,
+    Extension(user): Extension<Claims>,
+    Query(req): Query<StartDownloadRequest>,
+) -> download_handler::DownloadAPIResult<Redirect> {
+    let redirect = download_handler::start_download(file_storage, user.sub, req).await?;
+    Ok(Redirect::temporary(&redirect))
 }
 
 pub async fn wopi_check_file_info<F: Filesystem, D: DBFileStore>(
@@ -65,7 +90,8 @@ pub async fn wopi_check_file_info<F: Filesystem, D: DBFileStore>(
     request_body = UploadFileRequest,
     responses(
         (status = 200, description = "Upload request is valid and accepted", body = UploadFileResponse),
-        (status = 422, description = "Upload request is invalid (i.e. file is too large)")
+        (status = 400, description = "Upload request is invalid (i.e. negative size)"),
+        (status = 409, description = "Upload request is forbidden (i.e. file is too large)")
     )
 )]
 pub async fn upload_file_request<F: FileStorage, L: UploadLeaseStore>(
@@ -138,12 +164,15 @@ impl IntoResponse for UploadAPIError {
             Self::StorageError(e) => e.into_response(),
             Self::DatabaseError(e) => e.into_response(),
             Self::FileTooLarge(size, max_size) => (
-                StatusCode::BAD_REQUEST,
+                StatusCode::FORBIDDEN,
                 format!("file size {size} exceeds maximum {max_size}"),
             )
                 .into_response(),
             Self::NotFound(_) => (StatusCode::NOT_FOUND, "Upload lease not found").into_response(),
-            Self::NegativeSize(_) | Self::Unknown => {
+            Self::NegativeSize(_) => {
+                (StatusCode::BAD_REQUEST, "File size is negative").into_response()
+            }
+            Self::Unknown => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "Unknown internal error").into_response()
             }
         }
@@ -156,7 +185,8 @@ impl IntoResponse for FilesystemError {
             Self::FileAlreadyExists(e) => {
                 (StatusCode::CONFLICT, format!("File {e} already exists")).into_response()
             }
-            Self::Connection(_) => {
+            Self::Connection(e) => {
+                error!("error while connecting to filesystem {e:?}");
                 (StatusCode::BAD_GATEWAY, "Unable to connect to database").into_response()
             }
             FilesystemError::Other(e) => {
@@ -172,6 +202,24 @@ impl IntoResponse for UserfilesAPIError {
         match self {
             Self::NotFound(_) => (StatusCode::NOT_FOUND, "User file not found").into_response(),
             Self::Filesystem(e) => e.into_response(),
+        }
+    }
+}
+
+impl IntoResponse for DownloadAPIError {
+    fn into_response(self) -> axum::response::Response {
+        match self {
+            DownloadAPIError::StorageError(e) => {
+                error!("file storage error {e:?}");
+                (StatusCode::INTERNAL_SERVER_ERROR, "Unknown internal error").into_response()
+            }
+            DownloadAPIError::NotFound(_) => {
+                (StatusCode::NOT_FOUND, "File not found").into_response()
+            }
+            DownloadAPIError::Unknown => {
+                error!("unknown internal error!");
+                (StatusCode::INTERNAL_SERVER_ERROR, "Unknown internal error").into_response()
+            }
         }
     }
 }

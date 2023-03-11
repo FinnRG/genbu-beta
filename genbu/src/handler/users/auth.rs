@@ -2,7 +2,10 @@ use genbu_auth::authn;
 use secrecy::SecretString;
 use std::fmt::Debug;
 
-use crate::stores::{users::UserStore, Uuid};
+use crate::{
+    stores::{users::UserStore, Uuid},
+    telemetry::spawn_blocking_with_tracing,
+};
 
 use super::APIError;
 
@@ -29,7 +32,7 @@ pub async fn login_password<US: UserStore>(
     login_req: LoginRequest,
 ) -> Result<Uuid> {
     let db_user = user_store.get_by_email(&login_req.email).await?;
-    tokio::task::spawn_blocking(move || {
+    spawn_blocking_with_tracing(move || {
         let hash = db_user.as_ref().map_or(
             "$argon2id$v=19$m=16,t=2,p=1$MVVDSUtUUThaQzh0RHRkNg$mD5KaV0QFxQzWhmVZ+5tsA",
             |u| &u.hash,

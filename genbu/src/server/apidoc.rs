@@ -1,7 +1,10 @@
+use crate::handler::files::download::StartDownloadRequest;
 use crate::handler::files::upload::{
     FinishUploadRequest, GetUrisRequest, UploadFileRequest, UploadFileResponse,
 };
-use crate::handler::files::userfiles::{GetUserfilesRequest, GetUserfilesResponse};
+use crate::handler::files::userfiles::{
+    DeleteUserfileRequest, GetUserfilesRequest, GetUserfilesResponse,
+};
 use crate::handler::users::{auth::LoginRequest, CreateUserRequest};
 use crate::server::routes::{
     files::{self, userfiles},
@@ -9,7 +12,7 @@ use crate::server::routes::{
 };
 use crate::stores::files::database::LeaseID;
 use crate::stores::files::filesystem::Userfile;
-use crate::stores::files::storage::Part;
+use crate::stores::files::storage::{Bucket, Part};
 use crate::stores::users::{User, UserAvatar};
 use utoipa::{
     openapi::security::{ApiKey, ApiKeyValue, SecurityScheme},
@@ -27,9 +30,31 @@ use utoipa::{
         users::login,
         files::upload_file_request,
         files::finish_upload,
-        userfiles::get_userfiles
+        files::start_download,
+        userfiles::get_userfiles,
+        userfiles::delete_userfile
     ),
-    components(schemas(User, UserAvatar, CreateUserRequest, LoginRequest, UserResponse, UploadFileRequest, UploadFileResponse,  FinishUploadRequest, GetUrisRequest, Part, LeaseID, GetUserfilesRequest, GetUserfilesResponse, Userfile)),
+    components(
+        schemas(
+            User,
+            UserAvatar,
+            CreateUserRequest,
+            LoginRequest,
+            UserResponse,
+            UploadFileRequest,
+            UploadFileResponse,
+            FinishUploadRequest,
+            StartDownloadRequest,
+            GetUrisRequest,
+            Part,
+            LeaseID,
+            GetUserfilesRequest,
+            DeleteUserfileRequest,
+            GetUserfilesResponse,
+            Userfile,
+            Bucket
+        )
+    ),
     modifiers(&SecurityAddon),
     security(
         ("token" = [])

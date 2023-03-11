@@ -1,12 +1,19 @@
-use std::iter::once;
+use std::{iter::once, time::Duration};
 
 use crate::stores::{files::filesystem::Filesystem, DataStore};
-use axum::{Extension, Router, Server};
+use axum::{
+    body::{Body, BoxBody},
+    routing::get,
+    Extension, Router, Server,
+};
+use axum_prometheus::PrometheusMetricLayer;
+use http::{Request, Response};
 use hyper::header;
 use tower::ServiceBuilder;
 use tower_http::{
     cors::CorsLayer, sensitive_headers::SetSensitiveRequestHeadersLayer, trace::TraceLayer,
 };
+use tracing::Span;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -72,12 +79,36 @@ impl<S: DataStore, F: Filesystem> GenbuServer<S, F> {
             .layer(
                 ServiceBuilder::new()
                     .layer(SetSensitiveRequestHeadersLayer::new(once(header::COOKIE)))
-                    .layer(TraceLayer::new_for_http()),
+                    .layer(
+                        // TODO: Refactor this into a separate file
+                        TraceLayer::new_for_http()
+                            .make_span_with(|req: &Request<Body>| {
+                                tracing::debug_span!(
+                                    "request",
+                                    status_code = tracing::field::Empty,
+                                    uri = req.uri().to_string()
+                                )
+                            })
+                            .on_response(
+                                |response: &Response<BoxBody>, _latency: Duration, span: &Span| {
+                                    span.record("status_code", response.status().as_u16());
+
+                                    tracing::debug!("response generated")
+                                },
+                            ),
+                    ),
             )
             .layer(Extension(self.users.clone()))
             .layer(Extension(self.files.clone()));
+        if cfg!(any(test, feature = "testing")) {
+            let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
+            app = app
+                .layer(prometheus_layer)
+                .route("/metrics", get(|| async move { metric_handle.render() }));
+        }
         #[cfg(not(debug_assertions))]
         {
+            // TODO: Move frontend into this repo
             let spa = axum_extra::routing::SpaRouter::new("", "../genbu-frontend/dist");
             app = app.merge(spa);
         }
@@ -90,8 +121,6 @@ impl<S: DataStore, F: Filesystem> GenbuServer<S, F> {
 
     // TODO: Proper error handling
     pub async fn start(&self) -> Result<(), hyper::Error> {
-        tracing_subscriber::fmt::init();
-
         let app = self.app();
 
         Server::bind(&"0.0.0.0:8080".parse().unwrap())

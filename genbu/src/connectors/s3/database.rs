@@ -139,6 +139,22 @@ impl DBFileStore for PgStore {
     }
 
     async fn unlock(&mut self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>> {
+        // Begin transaction
+        let conn = self.conn.begin().await?;
+
+        // Get DBFile to compare the user given and the stored lock
+        let mut file = match self.get_dbfile(file_id).await? {
+            Some(f) => f,
+            None => return Ok(None),
+        };
+
+        // Performs the necessary checks
+        match file.unlock(lock) {
+            Ok(_) => {}
+            Err(e) => return Err(DBFileError::Locked(Some(e.to_owned()))),
+        };
+
+        // Set lock and lock_expires_at to null if checks were successful
         let res = sqlx::query_scalar!(
             r#"
                 update file
@@ -150,20 +166,29 @@ impl DBFileStore for PgStore {
         )
         .fetch_optional(&self.conn)
         .await?;
+
+        // Commit transaction
+        conn.commit().await?;
         Ok(res.map(|_| ()))
     }
 
     async fn extend_lock(&mut self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>> {
-        let file = match self.get_dbfile(file_id).await? {
+        // Begin transaction
+        let conn = self.conn.begin().await?;
+
+        // Get DBFile to compare the user given and the stored lock
+        let mut file = match self.get_dbfile(file_id).await? {
             Some(f) => f,
             None => return Ok(None),
         };
-        if !file.lock.as_ref().is_some_and(|x| x == &lock) {
-            return Err(DBFileError::Locked(file.lock));
-        }
-        let extended_timeout = file
-            .lock_expires_at
-            .map(|x| x + time::Duration::minutes(30));
+
+        // Performs the necessary checks
+        match file.extend_lock(lock) {
+            Ok(_) => {}
+            Err(e) => return Err(DBFileError::Locked(Some(e.to_owned()))),
+        };
+
+        // Update lock and lock_expires_at if checks were successful
         let res = sqlx::query_scalar!(
             r#"
                 update file
@@ -171,11 +196,15 @@ impl DBFileStore for PgStore {
                 where id = $2
                 returning id as "id: LeaseID"
             "#,
-            extended_timeout,
+            file.lock_expires_at,
             file_id
         )
         .fetch_optional(&self.conn)
         .await?;
+
+        // Commit transaction
+        conn.commit().await?;
+
         Ok(res.map(|_| ()))
     }
 

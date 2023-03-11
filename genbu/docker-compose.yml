@@ -1,0 +1,85 @@
+version: '3.4'
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=genbu
+      - POSTGRES_PASSWORD=strong_password
+      - POSTGRES_DB=genbu
+    ports:
+      - 5432:5432
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - ./config/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:z
+    environment:
+     - GF_AUTH_ANONYMOUS_ENABLED=true
+     - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+     - GF_AUTH_DISABLE_LOGIN_FORM=true
+     - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
+    ports:
+     - 3000:3000
+    labels:
+      namespace: monitoring
+  minio:
+    image: bitnami/minio:latest
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    ports:
+      - 9000:9000
+      - 9001:9001
+  mimir:
+    image: grafana/mimir:latest
+    user: root
+    volumes:
+      - ./config/mimir.yaml:/etc/mimir.yaml:z
+    command:
+      - --config.file=/etc/mimir.yaml
+    ports:
+      - 0.0.0.0:9009:9009
+    labels:
+      namespace: monitoring
+
+  loki:
+    image: grafana/loki:latest
+    command:
+      - -config.file=/etc/loki/local-config.yaml
+      - -table-manager.retention-period=1d
+      - -table-manager.retention-deletes-enabled=true
+    ports:
+      - "3100:3100"
+    labels:
+      namespace: monitoring
+
+  tempo:
+    image: grafana/tempo:latest
+    command:
+      - --target=all
+      - --storage.trace.backend=local
+      - --storage.trace.local.path=/var/tempo
+      - --auth.enabled=false
+      - --compactor.compaction.block-retention=24h
+    ports:
+      - "8004:80"
+    labels:
+      namespace: monitoring
+
+  agent:
+    image: grafana/agent:latest
+    volumes:
+      - ./config/agent.yaml:/etc/agent-config/agent.yaml:z
+    command:
+      - -config.file=/etc/agent-config/agent.yaml
+      - -metrics.wal-directory=/tmp/agent/wal
+      - -enable-features=integrations-next
+      - -config.expand-env
+      - -config.enable-read-api
+    ports:
+      - 6831:6831/udp
+    depends_on:
+      - loki
+      - tempo
+      - prometheus
+    labels:
+      namespace: monitoring

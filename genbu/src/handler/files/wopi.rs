@@ -2,8 +2,8 @@ use bytes::Bytes;
 use tracing::error;
 use wopi_rs::{
     file::{
-        CheckFileInfoRequest, CheckFileInfoResponse, FileRequest, FileRequestType, FileResponse,
-        LockRequest, LockResponse, PutRelativeFileRequest, PutRelativeFileResponse,
+        CheckFileInfoRequest, CheckFileInfoResponse, FileRequest, FileRequestType, LockRequest,
+        LockResponse, PutRelativeFileRequest, PutRelativeFileResponse,
     },
     FileBody, WopiResponse,
 };

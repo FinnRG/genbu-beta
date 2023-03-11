@@ -1,8 +1,8 @@
 use std::error::Error;
 
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use utoipa::ToSchema;
 
 use crate::stores::{Reset, Setup};
 
@@ -34,7 +34,7 @@ pub enum FileError {
 }
 
 #[non_exhaustive]
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, sqlx::Type)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, sqlx::Type, ToSchema)]
 #[sqlx(type_name = "bucket", rename_all = "lowercase")]
 pub enum Bucket {
     ProfileImages,
@@ -61,24 +61,25 @@ pub struct Part {
     pub part_number: i32,
 }
 
-pub type SResult<T> = Result<T, FileError>;
+pub type Result<T> = std::result::Result<T, FileError>;
 
 #[async_trait::async_trait]
 pub trait FileStorage: Reset + Setup + Clone + Sized + Send + Sync + 'static {
-    async fn delete_file(&mut self, bucket: Bucket, name: &str) -> SResult<()>;
+    async fn delete_file(&mut self, bucket: Bucket, name: &str) -> Result<()>;
+    async fn get_download_url(&self, bucket: Bucket, name: &str) -> Result<String>;
     async fn get_presigned_upload_urls(
         &self,
         bucket: Bucket,
         name: &str,
         size: u64,
         chunk_size: u64,
-    ) -> SResult<(Vec<String>, String)>;
+    ) -> Result<(Vec<String>, String)>;
     async fn finish_multipart_upload(
         &self,
         bucket: Bucket,
         name: &str,
         upload_id: &str,
         parts: Vec<Part>,
-    ) -> SResult<()>;
-    async fn upload(&mut self, bucket: Bucket, name: &str, data: Vec<u8>) -> SResult<()>;
+    ) -> Result<()>;
+    async fn upload(&mut self, bucket: Bucket, name: &str, data: Vec<u8>) -> Result<()>;
 }

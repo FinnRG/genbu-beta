@@ -5,7 +5,7 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use genbu_auth::authn::validate_jwt;
-use tracing::{debug, warn};
+use tracing::{debug, warn, Instrument};
 
 #[allow(clippy::future_not_send)]
 #[tracing::instrument(skip_all)]
@@ -23,7 +23,10 @@ pub async fn auth<B>(
         Ok(claims) => {
             req.extensions_mut().insert(claims);
             debug!("authn_token_accepted jwt validated");
-            Ok(next.run(req).await)
+            Ok(next
+                .run(req)
+                .instrument(tracing::info_span!("Authenticated Request"))
+                .await)
         }
         Err(e) => {
             warn!("authn_token_invalid jwt error: {:?}", e);

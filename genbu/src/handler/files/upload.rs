@@ -1,6 +1,8 @@
 use std::fmt::Debug;
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use utoipa::ToSchema;
 
 use crate::stores::{
     files::{
@@ -8,12 +10,12 @@ use crate::stores::{
         storage::{FileError, Part},
         FileStorage, UploadLease, UploadLeaseError, UploadLeaseStore,
     },
-    users::User,
     Uuid,
 };
 
 pub type UploadAPIResult<T> = std::result::Result<T, UploadAPIError>;
 
+// TODO: Make this configurable?
 static MAX_FILE_SIZE: u64 = 1_000_000_000;
 static CHUNK_SIZE: u64 = 10_000_000;
 
@@ -40,13 +42,13 @@ pub enum UploadAPIError {
 
 type Result<T> = UploadAPIResult<T>;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct UploadFileRequest {
     pub name: String,
     pub size: u64,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct UploadFileResponse {
     pub lease_id: LeaseID,
     pub upload_id: Option<String>,
@@ -70,11 +72,12 @@ pub async fn post(
         .size
         .try_into()
         .map_err(|_| UploadAPIError::Unknown)?;
+
     let lease = lease_store
         .add(&UploadLease {
             owner: user_id,
             size,
-            name: user_id.to_string() + "/" + &upload_req.name,
+            name: user_id.to_string() + "\\" + &upload_req.name,
             ..UploadLease::template()
         })
         .await?;
@@ -87,7 +90,7 @@ pub async fn post(
     })
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct GetUrisRequest {
     lease_id: LeaseID,
 }
@@ -128,7 +131,7 @@ async fn get_presigned_upload_urls(
     Ok((uris, Some(upload_id)))
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct FinishUploadRequest {
     lease_id: LeaseID,
     upload_id: String,
