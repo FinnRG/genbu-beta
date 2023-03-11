@@ -23,7 +23,7 @@ async fn _send_test_email() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn init_telemetry() {
+fn init_telemetry() {
     global::set_text_map_propagator(TraceContextPropagator::new());
     let jaeger_tracer = opentelemetry_jaeger::new_agent_pipeline()
         .with_endpoint("0.0.0.0:6831")
@@ -42,7 +42,7 @@ async fn init_telemetry() {
 #[tokio::main]
 async fn main() -> Result<(), impl Debug> {
     dotenvy::dotenv().expect("unable to initialize dotenvy");
-    init_telemetry().await;
+    init_telemetry();
 
     info!("Trying to connect to to postgres");
     let pg_store = PgStore::new("postgres://genbu:strong_password@127.0.0.1:5432/genbu".into())

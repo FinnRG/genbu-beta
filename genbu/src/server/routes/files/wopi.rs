@@ -3,7 +3,7 @@ use bytes::Bytes;
 use http::Request;
 use hyper::body::to_bytes;
 use tracing::error;
-use wopi_rs::file::{FileRequest, FileResponse};
+use wopi_rs::file::FileRequest;
 
 pub struct Wopi<T>(pub FileRequest<T>);
 pub struct WopiResponse(pub http::Response<Bytes>);

@@ -54,6 +54,7 @@ impl<S: DataStore, F: Filesystem> GenbuServerBuilder<S, F> {
     #[must_use]
     pub fn build(&mut self) -> Option<GenbuServer<S, F>> {
         self.users.as_ref()?;
+        self.files.as_ref()?;
         Some(GenbuServer {
             users: self.users.take().unwrap(),
             files: self.files.take().unwrap(),
@@ -93,7 +94,7 @@ impl<S: DataStore, F: Filesystem> GenbuServer<S, F> {
                                 |response: &Response<BoxBody>, _latency: Duration, span: &Span| {
                                     span.record("status_code", response.status().as_u16());
 
-                                    tracing::debug!("response generated")
+                                    tracing::debug!("response generated");
                                 },
                             ),
                     ),

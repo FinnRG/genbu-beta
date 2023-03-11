@@ -121,7 +121,7 @@ impl From<sqlx::Error> for DBFileError {
 
 #[async_trait::async_trait]
 impl DBFileStore for PgStore {
-    async fn add_dbfile(&mut self, file: &DBFile) -> FileResult<DBFile> {
+    async fn add_dbfile(&self, file: &DBFile) -> FileResult<DBFile> {
         let res = sqlx::query_as!(
             DBFile,
             r#"
@@ -138,20 +138,19 @@ impl DBFileStore for PgStore {
         Ok(res)
     }
 
-    async fn unlock(&mut self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>> {
+    async fn unlock(&self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>> {
         // Begin transaction
         let conn = self.conn.begin().await?;
 
         // Get DBFile to compare the user given and the stored lock
-        let mut file = match self.get_dbfile(file_id).await? {
-            Some(f) => f,
-            None => return Ok(None),
+        let Some(mut file) =  self.get_dbfile(file_id).await? else {
+            return Ok(None);
         };
 
         // Performs the necessary checks
-        match file.unlock(lock) {
+        match file.unlock(&lock) {
             Ok(_) => {}
-            Err(e) => return Err(DBFileError::Locked(Some(e.to_owned()))),
+            Err(e) => return Err(DBFileError::Locked(Some(e.clone()))),
         };
 
         // Set lock and lock_expires_at to null if checks were successful
@@ -172,20 +171,19 @@ impl DBFileStore for PgStore {
         Ok(res.map(|_| ()))
     }
 
-    async fn extend_lock(&mut self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>> {
+    async fn extend_lock(&self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>> {
         // Begin transaction
         let conn = self.conn.begin().await?;
 
         // Get DBFile to compare the user given and the stored lock
-        let mut file = match self.get_dbfile(file_id).await? {
-            Some(f) => f,
-            None => return Ok(None),
+        let Some(mut file) =  self.get_dbfile(file_id).await? else {
+            return Ok(None);
         };
 
         // Performs the necessary checks
-        match file.extend_lock(lock) {
+        match file.extend_lock(&lock) {
             Ok(_) => {}
-            Err(e) => return Err(DBFileError::Locked(Some(e.to_owned()))),
+            Err(e) => return Err(DBFileError::Locked(Some(e.clone()))),
         };
 
         // Update lock and lock_expires_at if checks were successful
@@ -208,14 +206,13 @@ impl DBFileStore for PgStore {
         Ok(res.map(|_| ()))
     }
 
-    async fn lock(&mut self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>> {
+    async fn lock(&self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>> {
         let conn = self.conn.begin().await?;
-        let mut file = match self.get_dbfile(file_id).await? {
-            Some(f) => f,
-            None => return Ok(None),
+        let Some(mut file) = self.get_dbfile(file_id).await? else {
+            return Ok(None);
         };
         if file.is_locked() {
-            file.extend_lock(lock)
+            file.extend_lock(&lock)
                 .map_err(|l| DBFileError::Locked(Some(l.clone())))?;
             return Ok(Some(()));
         }

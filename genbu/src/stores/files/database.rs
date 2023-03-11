@@ -90,6 +90,7 @@ pub struct DBFile {
 pub struct FileLock(String);
 
 impl FileLock {
+    #[must_use]
     pub fn new() -> Self {
         FileLock(Uuid::new_v4().to_string())
     }
@@ -126,6 +127,7 @@ impl DBFile {
         }
     }
 
+    #[must_use]
     pub fn is_locked(&self) -> bool {
         self.lock.is_some()
             && self
@@ -162,16 +164,16 @@ impl DBFile {
         Err(self.lock.as_ref().unwrap())
     }
 
-    pub fn unlock(&mut self, lock: FileLock) -> Result<(), &FileLock> {
-        if self.validate_lock(&lock) {
+    pub fn unlock(&mut self, lock: &FileLock) -> Result<(), &FileLock> {
+        if self.validate_lock(lock) {
             self.unchecked_unlock();
             return Ok(());
         }
         Err(self.lock.as_ref().unwrap())
     }
 
-    pub fn extend_lock(&mut self, lock: FileLock) -> Result<(), &FileLock> {
-        if self.validate_lock(&lock) {
+    pub fn extend_lock(&mut self, lock: &FileLock) -> Result<(), &FileLock> {
+        if self.validate_lock(lock) {
             self.unchecked_extend_lock();
             return Ok(());
         }
@@ -202,10 +204,10 @@ pub trait DBFileStore {
         };
         Ok(Some(file.lock.is_some_and(|x| x == lock)))
     }
-    async fn add_dbfile(&mut self, file: &DBFile) -> FileResult<DBFile>;
-    async fn lock(&mut self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>>;
-    async fn unlock(&mut self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>>;
-    async fn extend_lock(&mut self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>>;
+    async fn add_dbfile(&self, file: &DBFile) -> FileResult<DBFile>;
+    async fn lock(&self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>>;
+    async fn unlock(&self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>>;
+    async fn extend_lock(&self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>>;
 }
 
 #[cfg(test)]
@@ -228,7 +230,7 @@ mod tests {
         let lock: FileLock = "Test".into();
         assert!(dbf.lock(lock.clone()).is_ok());
         assert!(dbf.is_locked());
-        assert!(dbf.unlock(lock).is_ok());
+        assert!(dbf.unlock(&lock).is_ok());
         assert!(!dbf.is_locked());
     }
 
@@ -238,6 +240,6 @@ mod tests {
         let valid_lock: FileLock = "Test".into();
         let invalid_lock: FileLock = "test".into();
         dbf.lock(valid_lock.clone()).expect("unable to lock dbf");
-        assert_eq!(dbf.unlock(invalid_lock), Err(&valid_lock));
+        assert_eq!(dbf.unlock(&invalid_lock), Err(&valid_lock));
     }
 }

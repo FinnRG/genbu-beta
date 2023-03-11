@@ -8,7 +8,7 @@ use crate::stores::{
     },
     Uuid,
 };
-use std::{fmt::Debug, ops::Deref};
+use std::fmt::Debug;
 
 #[derive(Debug, thiserror::Error)]
 pub enum UserfilesAPIError {
@@ -61,6 +61,7 @@ pub async fn delete_userfile(
     Ok(())
 }
 
+#[must_use]
 pub fn build_path(user_id: Uuid, path: &str) -> String {
-    format!("{}\\{}", user_id, path.deref())
+    format!("{user_id}\\{path}")
 }
