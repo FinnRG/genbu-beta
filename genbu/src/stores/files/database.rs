@@ -4,14 +4,13 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use time::{Duration, OffsetDateTime};
+use utoipa::ToSchema;
 
 use crate::stores::{users::User, Uuid};
 
 use super::storage::Bucket;
 
-#[derive(
-    Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, utoipa::ToSchema, sqlx::Type,
-)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, ToSchema, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
 pub struct LeaseID(pub Uuid);
@@ -85,9 +84,7 @@ pub struct DBFile {
     pub created_at: OffsetDateTime,
 }
 
-#[derive(
-    Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, utoipa::ToSchema, sqlx::Type,
-)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, ToSchema, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
 pub struct FileLock(String);

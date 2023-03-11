@@ -9,17 +9,14 @@ use wopi_rs::{
 };
 
 use crate::stores::{
-    files::{
-        database::{DBFileError, DBFileStore},
-        filesystem::Filesystem,
-    },
+    files::{database::DBFileError, filesystem::Filesystem},
     users::User,
-    Uuid,
+    DataStore, Uuid,
 };
 
 pub async fn wopi_file(
     filesystem: impl Filesystem,
-    file_db: impl DBFileStore,
+    file_db: impl DataStore,
     user: &User,
     file_req: FileRequest<Bytes>,
 ) -> http::Response<Bytes> {
@@ -42,7 +39,7 @@ type Response<T> = WopiResponse<T>;
 
 #[tracing::instrument(skip(file_db))]
 async fn handle_check_file_info(
-    mut file_db: impl DBFileStore,
+    file_db: impl DataStore,
     user: &User,
     id: Uuid,
     req: CheckFileInfoRequest,
@@ -76,7 +73,7 @@ async fn handle_check_file_info(
 }
 
 async fn handle_lock(
-    mut file_db: impl DBFileStore,
+    mut file_db: impl DataStore,
     user: &User,
     id: Uuid,
     req: LockRequest,

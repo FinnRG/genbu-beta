@@ -1,12 +1,15 @@
 use std::error::Error;
 
+use oso::PolarClass;
+use serde::{Deserialize, Serialize};
 use time::{serde::iso8601::option as iso8601, OffsetDateTime};
+use utoipa::ToSchema;
 
 use crate::stores::Uuid;
 
 use super::FileStorage;
 
-#[derive(Clone, Debug, oso::PolarClass, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(Clone, Debug, PolarClass, Serialize, Deserialize, ToSchema)]
 pub struct Userfile {
     pub name: String,
     #[serde(with = "iso8601")]

@@ -24,7 +24,6 @@ use crate::{
     server::middlewares::auth::auth,
     stores::{
         files::{
-            database::DBFileStore,
             filesystem::{Filesystem, FilesystemError},
             storage::{FileError, FileStorage},
             UploadLeaseError, UploadLeaseStore,
@@ -46,7 +45,6 @@ pub fn router<F: FileStorage + Filesystem, L: DataStore>() -> Router {
         .route("/api/files/upload", post(upload_file_request::<F, L>)) // TODO: COnsider using put
         // instead of post,
         .route("/api/files/upload/finish", post(finish_upload::<F, L>))
-        // .route("/api/wopi/files/:id/contents", get(todo!()))
         .route(
             "/api/wopi/files/:id",
             get(wopi_check_file_info::<F, L>), // .post(todo!())
@@ -73,7 +71,7 @@ pub async fn start_download<F: Filesystem>(
     Ok(Redirect::temporary(&redirect))
 }
 
-pub async fn wopi_check_file_info<F: Filesystem, D: DBFileStore>(
+pub async fn wopi_check_file_info<F: Filesystem, D: DataStore>(
     Extension(file_storage): Extension<F>,
     Extension(db_file_store): Extension<D>,
     Wopi(req): Wopi<Bytes>,
@@ -94,7 +92,7 @@ pub async fn wopi_check_file_info<F: Filesystem, D: DBFileStore>(
         (status = 409, description = "Upload request is forbidden (i.e. file is too large)")
     )
 )]
-pub async fn upload_file_request<F: FileStorage, L: UploadLeaseStore>(
+pub async fn upload_file_request<F: FileStorage, L: DataStore>(
     Extension(file_storage): Extension<F>,
     Extension(lease_store): Extension<L>,
     Extension(user): Extension<Claims>,
@@ -115,7 +113,7 @@ pub async fn upload_file_request<F: FileStorage, L: UploadLeaseStore>(
         (status = 500, description = "An internal error occured while uploading")
     )
 )]
-pub async fn finish_upload<F: FileStorage, L: UploadLeaseStore>(
+pub async fn finish_upload<F: FileStorage, L: DataStore>(
     Extension(file_storage): Extension<F>,
     Extension(lease_store): Extension<L>,
     Json(req): Json<handler::FinishUploadRequest>,

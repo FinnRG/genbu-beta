@@ -55,7 +55,7 @@ impl Bucket {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Part {
     pub e_tag: String,
     pub part_number: i32,

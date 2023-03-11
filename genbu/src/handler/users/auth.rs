@@ -1,6 +1,8 @@
 use genbu_auth::authn;
 use secrecy::SecretString;
+use serde::Deserialize;
 use std::fmt::Debug;
+use utoipa::ToSchema;
 
 use crate::{
     stores::{users::UserStore, Uuid},
@@ -12,7 +14,7 @@ use super::APIError;
 pub type AuthAPIError<T> = std::result::Result<T, APIError>;
 type Result<T> = AuthAPIError<T>;
 
-#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct LoginRequest {
     email: String,
     #[schema(value_type = String, format = Password)]
