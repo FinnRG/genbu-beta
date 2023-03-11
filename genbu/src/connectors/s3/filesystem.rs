@@ -5,26 +5,17 @@ use aws_smithy_types_convert::date_time::DateTimeExt;
 
 use crate::stores::{
     files::{
-        filesystem::{Filesystem, FilesystemError, SResult, Userfile},
+        filesystem::{Filesystem, SResult, Userfile},
         storage::Bucket,
     },
     Uuid,
 };
 
-use super::S3Store;
-
-fn map_sdk_err<E: Error + Send + Sync + 'static, R: Debug + Send + Sync + 'static>(
-    err: SdkError<E, R>,
-) -> FilesystemError {
-    match err {
-        SdkError::TimeoutError(_) => FilesystemError::Connection(Box::new(err)),
-        _ => FilesystemError::Other(Box::new(err)),
-    }
-}
+use super::{map_sdk_err, S3Store};
 
 #[async_trait::async_trait]
 impl Filesystem for S3Store {
-    async fn list(&self, user_id: Uuid, base_path: &str) -> SResult<Vec<Userfile>> {
+    async fn list_files(&self, user_id: Uuid, base_path: &str) -> SResult<Vec<Userfile>> {
         let resp = self
             .client
             .list_objects_v2()
@@ -58,15 +49,5 @@ impl Filesystem for S3Store {
                     }),
             )
             .collect())
-    }
-    async fn delete(&mut self, path: &str) -> SResult<()> {
-        self.client
-            .delete_object()
-            .bucket(Bucket::UserFiles.to_bucket_name())
-            .key(path)
-            .send()
-            .await
-            .map_err(map_sdk_err)?;
-        Ok(())
     }
 }

@@ -6,7 +6,7 @@ use axum::{
     Router,
 };
 use genbu_server::{
-    connectors::{memory::MemStore, postgres::PgStore, s3},
+    connectors::{postgres::PgStore, s3},
     server::builder::GenbuServerBuilder,
     stores::{DataStore, Reset, Setup, Uuid},
 };
@@ -114,7 +114,6 @@ impl TestClient {
 }
 
 pub async fn build_app() -> Router {
-    let _mem_store = MemStore::new();
     let _pg_store = PgStore::new(build_connection_string(&Uuid::new_v4().to_string()))
         // TODO:
         // Make

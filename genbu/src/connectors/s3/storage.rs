@@ -17,14 +17,14 @@ use super::{map_sdk_err, S3Store};
 #[async_trait::async_trait]
 impl FileStorage for S3Store {
     async fn delete_file(&mut self, bucket: Bucket, name: &str) -> Result<(), FileError> {
-        let res = self
-            .client
+        self.client
             .delete_object()
             .bucket(bucket.to_bucket_name())
             .key(name)
             .send()
-            .await;
-        res.map(|_| ()).map_err(map_sdk_err)
+            .await
+            .map(|_| ())
+            .map_err(map_sdk_err)
     }
 
     async fn get_download_url(&self, bucket: Bucket, name: &str) -> Result<String, FileError> {

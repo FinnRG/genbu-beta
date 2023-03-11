@@ -2,7 +2,10 @@ use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
 use crate::stores::{
-    files::filesystem::{Filesystem, FilesystemError, Userfile},
+    files::{
+        filesystem::{Filesystem, Userfile},
+        storage::FileError,
+    },
     Uuid,
 };
 use std::{fmt::Debug, ops::Deref};
@@ -10,7 +13,7 @@ use std::{fmt::Debug, ops::Deref};
 #[derive(Debug, thiserror::Error)]
 pub enum UserfilesAPIError {
     #[error("filesystem error")]
-    Filesystem(#[from] FilesystemError),
+    Filesystem(#[from] FileError),
 
     #[error("file {0:?} not found")]
     NotFound(Box<dyn Debug + Send + Sync>),
@@ -36,7 +39,7 @@ pub async fn get_userfiles(
     get_req: &GetUserfilesRequest,
 ) -> Result<GetUserfilesResponse> {
     let path = build_path(user_id, &get_req.base_path);
-    let mut files = filesystem.list(user_id, &path).await?;
+    let mut files = filesystem.list_files(user_id, &path).await?;
     files
         .iter_mut()
         .for_each(|f| f.name = f.name.split_off(build_path(user_id, "").len()));
@@ -54,7 +57,7 @@ pub async fn delete_userfile(
     delete_req: DeleteUserfileRequest,
 ) -> Result<()> {
     let path = build_path(user_id, &delete_req.path);
-    filesystem.delete(&path).await?;
+    filesystem.delete_file_at_path(&path).await?;
     Ok(())
 }
 

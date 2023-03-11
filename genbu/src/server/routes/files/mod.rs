@@ -24,9 +24,9 @@ use crate::{
     server::middlewares::auth::auth,
     stores::{
         files::{
-            filesystem::{Filesystem, FilesystemError},
+            filesystem::Filesystem,
             storage::{FileError, FileStorage},
-            UploadLeaseError, UploadLeaseStore,
+            UploadLeaseError,
         },
         users::User,
         DataStore,
@@ -169,24 +169,6 @@ impl IntoResponse for UploadAPIError {
                 (StatusCode::BAD_REQUEST, "File size is negative").into_response()
             }
             Self::Unknown => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "Unknown internal error").into_response()
-            }
-        }
-    }
-}
-
-impl IntoResponse for FilesystemError {
-    fn into_response(self) -> axum::response::Response {
-        match self {
-            Self::FileAlreadyExists(e) => {
-                (StatusCode::CONFLICT, format!("File {e} already exists")).into_response()
-            }
-            Self::Connection(e) => {
-                error!("error while connecting to filesystem {e:?}");
-                (StatusCode::BAD_GATEWAY, "Unable to connect to database").into_response()
-            }
-            FilesystemError::Other(e) => {
-                error!("Unknown filesystem error {e:?}");
                 (StatusCode::INTERNAL_SERVER_ERROR, "Unknown internal error").into_response()
             }
         }

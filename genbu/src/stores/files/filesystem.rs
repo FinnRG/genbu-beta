@@ -7,7 +7,10 @@ use utoipa::ToSchema;
 
 use crate::stores::Uuid;
 
-use super::FileStorage;
+use super::{
+    storage::{Bucket, FileError},
+    FileStorage,
+};
 
 #[derive(Clone, Debug, PolarClass, Serialize, Deserialize, ToSchema)]
 pub struct Userfile {
@@ -20,22 +23,12 @@ pub struct Userfile {
     pub is_folder: bool,
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum FilesystemError {
-    #[error("a file with this path `{0}` already exists")]
-    FileAlreadyExists(String),
-
-    #[error("unable to establish a database connection")]
-    Connection(#[source] Box<dyn Error + Send + Sync>),
-
-    #[error("unknown file system error")]
-    Other(#[source] Box<dyn Error + Send + Sync>),
-}
-
-pub type SResult<T> = Result<T, FilesystemError>;
+pub type SResult<T> = Result<T, FileError>;
 
 #[async_trait::async_trait]
 pub trait Filesystem: FileStorage {
-    async fn list(&self, user_id: Uuid, base_path: &str) -> SResult<Vec<Userfile>>;
-    async fn delete(&mut self, path: &str) -> SResult<()>;
+    async fn list_files(&self, user_id: Uuid, base_path: &str) -> SResult<Vec<Userfile>>;
+    async fn delete_file_at_path(&mut self, path: &str) -> Result<(), FileError> {
+        self.delete_file(Bucket::UserFiles, path).await
+    }
 }
