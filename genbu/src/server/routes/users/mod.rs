@@ -10,7 +10,6 @@ use axum_extra::extract::cookie::{Cookie, SameSite};
 use genbu_auth::authn;
 use hyper::{header, StatusCode};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use utoipa::ToSchema;
 
 use crate::{

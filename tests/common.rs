@@ -81,20 +81,6 @@ impl TestClient {
         self.token = Some(resp.headers().get(header::SET_COOKIE).unwrap().clone());
     }
 
-    pub async fn login_default(&mut self) {
-        let resp = self
-            .request(Request::post("/api/login").json(json! {{
-                "email": "test@example.com",
-                "password": "strong_password"
-            }}))
-            .await;
-
-        assert_eq!(resp.status(), StatusCode::OK);
-        assert!(resp.headers().contains_key(header::SET_COOKIE));
-
-        self.token = Some(resp.headers().get(header::SET_COOKIE).unwrap().clone());
-    }
-
     pub async fn request(
         &mut self,
         mut req: Request<Body>,
@@ -141,4 +127,5 @@ pub fn build_connection_string(db_name: &str) -> String {
     "postgres://genbu:strong_password@127.0.0.1:5432/gtest-".to_owned() + db_name
 }
 
+#[allow(dead_code)]
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;

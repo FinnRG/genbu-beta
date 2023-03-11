@@ -1,6 +1,3 @@
-use std::{error::Error, fmt::Debug};
-
-use aws_sdk_s3::types::SdkError;
 use aws_smithy_types_convert::date_time::DateTimeExt;
 
 use crate::stores::{

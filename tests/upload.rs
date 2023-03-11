@@ -1,5 +1,3 @@
-use std::{fs::File, io::Read};
-
 use axum::http::{Request, StatusCode};
 use common::TestClient;
 use genbu_server::handler::files::{upload::UploadFileResponse, userfiles::GetUserfilesResponse};
@@ -36,7 +34,7 @@ async fn upload_small_file(mut client: TestClient) -> Result<()> {
     assert_eq!(upload_resp.status(), StatusCode::OK);
     let e_tag = upload_resp.headers().get("ETag").unwrap().to_str().unwrap();
 
-    let mut resp = client
+    let resp = client
         .request(Request::post("/api/files/upload/finish").json(json! {{
             "lease_id": resp.lease_id,
             "upload_id": resp.upload_id.unwrap(),
@@ -66,7 +64,7 @@ async fn restrict_file_size() -> Result<()> {
     let mut client = TestClient::new().await;
     client.register_default().await;
 
-    let mut resp = client
+    let resp = client
         .request(Request::post("/api/files/upload").json(json! {{
             "name": "test.jpg",
             "size": 1_000_000_100
@@ -83,7 +81,7 @@ async fn negative_size() -> Result<()> {
     let mut client = TestClient::new().await;
     client.register_default().await;
 
-    let mut resp = client
+    let resp = client
         .request(Request::post("/api/files/upload").json(json! {{
             "name": "test.jpg",
             "size": -10

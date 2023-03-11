@@ -1,5 +1,3 @@
-use std::error::Error;
-
 use oso::PolarClass;
 use serde::{Deserialize, Serialize};
 use time::{serde::iso8601::option as iso8601, OffsetDateTime};

@@ -1,15 +1,9 @@
 use axum::http::{header, Request, StatusCode};
-use genbu_server::{
-    connectors::postgres::PgStore,
-    stores::{
-        users::{User, UserStore},
-        DataStore, Uuid,
-    },
-};
+use genbu_server::stores::{users::User, Uuid};
 use serde_json::{json, Value};
 
 mod common;
-use common::{build_connection_string, response_json, RequestBuilderExt, TestClient};
+use common::{response_json, RequestBuilderExt, TestClient};
 
 #[tokio::test]
 async fn basic_email_login() {
