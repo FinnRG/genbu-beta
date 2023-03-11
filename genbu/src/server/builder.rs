@@ -106,12 +106,11 @@ impl<S: DataStore, F: Filesystem> GenbuServer<S, F> {
                 .layer(prometheus_layer)
                 .route("/metrics", get(|| async move { metric_handle.render() }));
         }
-        #[cfg(not(debug_assertions))]
-        {
-            // TODO: Move frontend into this repo
-            let spa = axum_extra::routing::SpaRouter::new("", "../genbu-frontend/dist");
-            app = app.merge(spa);
-        }
+        //#[cfg(not(debug_assertions))]
+        // TODO: Move frontend into this repo
+
+        let spa = tower_http::services::ServeDir::new("./dist");
+        app = app.nest_service("", spa);
         #[cfg(debug_assertions)]
         {
             app = app.layer(CorsLayer::very_permissive());

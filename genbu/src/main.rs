@@ -52,7 +52,6 @@ async fn main() -> Result<(), impl Debug> {
         // configurable
         .await
         .expect("unable to connect to Postgres");
-    pg_store.setup().await.expect("unable to setup Postgres");
 
     let mut s3_store = s3::S3Store::new().await;
 
