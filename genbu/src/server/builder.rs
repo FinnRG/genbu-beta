@@ -32,7 +32,7 @@ pub struct GenbuServer<S: DataStore, F: Filesystem> {
     files: F,
 }
 
-impl<S: DataStore, F: Filesystem + Send + Sync> GenbuServerBuilder<S, F> {
+impl<S: DataStore, F: Filesystem> GenbuServerBuilder<S, F> {
     #[must_use]
     pub const fn new() -> Self {
         Self {

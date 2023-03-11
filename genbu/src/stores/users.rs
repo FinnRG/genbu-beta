@@ -104,7 +104,7 @@ pub type SResult<T> = Result<T, UserError>;
 
 /// Main data layer abstraction for users.
 #[async_trait::async_trait]
-pub trait UserStore: Sized + Send + Sync + Clone + 'static {
+pub trait UserStore {
     // TODO: Better error handling
     async fn add(&mut self, user: &User) -> SResult<()>;
 

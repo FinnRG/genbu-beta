@@ -63,7 +63,7 @@ impl UploadLease {
 pub type SResult<T> = Result<T, UploadLeaseError>;
 
 #[async_trait]
-pub trait UploadLeaseStore: Sized + Send + Sync + Clone + 'static {
+pub trait UploadLeaseStore {
     async fn add(&mut self, lease: &UploadLease) -> SResult<UploadLease>;
 
     async fn delete(&mut self, id: &LeaseID) -> SResult<Option<UploadLease>>;
@@ -194,7 +194,7 @@ pub enum DBFileError {
 pub type FileResult<T> = Result<T, DBFileError>;
 
 #[async_trait::async_trait]
-pub trait DBFileStore: Sized + Send + Sync + Clone + 'static {
+pub trait DBFileStore {
     async fn get_dbfile(&self, file_id: Uuid) -> FileResult<Option<DBFile>>;
     async fn validate_lock(&self, file_id: Uuid, lock: FileLock) -> FileResult<Option<bool>> {
         let Some(file) = self.get_dbfile(file_id).await? else {

@@ -38,7 +38,7 @@ use self::wopi::{Wopi, WopiResponse};
 pub mod userfiles;
 pub mod wopi;
 
-pub fn router<F: FileStorage + Filesystem, L: DataStore>() -> Router {
+pub fn router<F: Filesystem, L: DataStore>() -> Router {
     Router::new()
         .merge(userfiles::router::<F>())
         .route("/api/files/download", get(start_download::<F>))
