@@ -140,7 +140,7 @@ impl IntoResponse for FileError {
 
 impl IntoResponse for UploadLeaseError {
     fn into_response(self) -> axum::response::Response {
-        let (status, error_message) = match self {
+        let resp = match self {
             Self::Connection(_) => (
                 StatusCode::BAD_GATEWAY,
                 "Server failed to establish connection to database",
@@ -150,9 +150,7 @@ impl IntoResponse for UploadLeaseError {
             Self::Other(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Unknown internal error"),
         };
 
-        let body = Json(json!({ "error": error_message }));
-
-        (status, body).into_response()
+        resp.into_response()
     }
 }
 

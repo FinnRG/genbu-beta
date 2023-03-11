@@ -202,7 +202,7 @@ impl IntoResponse for handler::users::APIError {
         // You shouldn't depend on this behaviour
         match self {
             Self::StoreError(e) => {
-                let (status, error_message) = match e {
+                let resp = match e {
                     UserError::EmailAlreadyExists(_) => {
                         (StatusCode::CONFLICT, "E-Mail already exists")
                     }
@@ -216,9 +216,7 @@ impl IntoResponse for handler::users::APIError {
                     }
                 };
 
-                let body = Json(json!({ "error": error_message }));
-
-                (status, body).into_response()
+                resp.into_response()
             }
             Self::WrongCredentials => {
                 (StatusCode::UNAUTHORIZED, "wrong credentials").into_response()

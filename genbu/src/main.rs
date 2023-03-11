@@ -45,7 +45,7 @@ async fn main() -> Result<(), impl Debug> {
     init_telemetry().await;
 
     info!("Trying to connect to to postgres");
-    let mut pg_store = PgStore::new("postgres://genbu:strong_password@127.0.0.1:5432/genbu".into())
+    let pg_store = PgStore::new("postgres://genbu:strong_password@127.0.0.1:5432/genbu".into())
         // TODO:
         // Make
         // this
