@@ -19,6 +19,7 @@ futures = "0.3.27"
 genbu-auth = { version = "0.1.0", features = ["http"], path = "../auth" }
 http = "0.2.8"
 hyper = "0.14.20"
+itertools = "0.10.5"
 lettre = { version = "0.10.1", features = ["tokio1-rustls-tls", "tracing", "builder", "tokio1", "hostname", "smtp-transport"], default-features = false }
 opentelemetry = { version = "0.18.0", features = ["metrics", "rt-tokio", "trace"] }
 opentelemetry-jaeger = { version = "0.17.0", features = ["rt-tokio"] }

@@ -1209,6 +1209,7 @@ dependencies = [
  "http",
  "http-body",
  "hyper",
+ "itertools",
  "lettre",
  "opentelemetry",
  "opentelemetry-jaeger",

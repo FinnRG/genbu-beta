@@ -1,6 +1,7 @@
 use std::{error::Error, fmt::Display};
 
 use async_trait::async_trait;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use time::{Duration, OffsetDateTime};
@@ -131,8 +132,18 @@ impl DBFile {
         if self.path.len() == 0 {
             return String::new();
         }
-        let parts = self.path.split_terminator('\\').collect::<Vec<_>>();
-        parts[..parts.len() - 1].join("\\")
+        let parts = self.path.split_terminator('\\').rev().collect::<Vec<_>>();
+        parts.iter().skip(1).rev().join("\\")
+        // parts[1..].iter().rev().join("\\")
+    }
+
+    pub fn name(&self) -> String {
+        self.path
+            .split('\\')
+            .rev()
+            .next()
+            .unwrap_or_default()
+            .to_owned()
     }
 
     #[must_use]
@@ -224,7 +235,25 @@ mod tests {
     use super::*;
 
     fn create_dbfile() -> DBFile {
-        DBFile::with_path_and_user("/test", &User::template())
+        DBFile::with_path_and_user("\\test", &User::template())
+    }
+
+    #[test]
+    fn parent_folder() {
+        let dbf = DBFile::with_path_and_user("folder\\test.txt", &User::template());
+        assert_eq!(dbf.parent_folder(), "folder");
+    }
+
+    #[test]
+    fn parent_folder_of_folder() {
+        let dbf = DBFile::with_path_and_user("folder1\\folder2\\", &User::template());
+        assert_eq!(dbf.parent_folder(), "folder1");
+    }
+
+    #[test]
+    fn file_name() {
+        let db = create_dbfile();
+        assert_eq!(db.name(), "test");
     }
 
     #[test]

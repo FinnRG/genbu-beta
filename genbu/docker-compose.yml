@@ -80,6 +80,5 @@ services:
     depends_on:
       - loki
       - tempo
-      - prometheus
     labels:
       namespace: monitoring
