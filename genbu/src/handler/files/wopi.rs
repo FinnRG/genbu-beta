@@ -10,7 +10,7 @@ use wopi_rs::{
 
 use crate::stores::{
     files::{
-        database::{DBFileError, DBFileStore, LeaseID},
+        database::{DBFile, DBFileError, DBFileStore, LeaseID},
         filesystem::Filesystem,
         storage::{Bucket, FileError},
         UploadLeaseStore,
@@ -123,6 +123,16 @@ async fn handle_put_relative(
     req: FileBody<Bytes, PutRelativeFileRequest>,
 ) -> Response<PutRelativeFileResponse> {
     let data = req.body;
+    // Get the base file, from which we will place the relative file
+    let dbfile = match file_db.get_dbfile(lease_id.0).await {
+        Ok(Some(f)) => f,
+        Ok(None) => return Response::NotFound,
+        Err(DBFileError::Connection(e)) => {
+            error!("db connection error {e:?}");
+            return Response::InternalServerError;
+        }
+        Err(_) => return Response::InternalServerError, // TODO: Better Other error handling
+    };
     match req.request {
         PutRelativeFileRequest::Specific {
             relative_target,
@@ -133,7 +143,8 @@ async fn handle_put_relative(
             handle_put_relative_specific(
                 filesystem,
                 file_db,
-                lease_id,
+                user,
+                dbfile,
                 data,
                 relative_target,
                 overwrite_relative_target,
@@ -146,7 +157,19 @@ async fn handle_put_relative(
             suggested_target,
             size,
             file_conversion,
-        } => todo!(),
+        } => {
+            handle_put_relative_file_suggested(
+                filesystem,
+                file_db,
+                user,
+                dbfile,
+                data,
+                suggested_target,
+                size,
+                file_conversion,
+            )
+            .await
+        }
     }
 }
 
@@ -154,23 +177,14 @@ async fn handle_put_relative(
 async fn handle_put_relative_specific(
     filesystem: impl Filesystem,
     file_db: impl DBFileStore + UploadLeaseStore,
-    lease_id: LeaseID,
+    user: &User,
+    dbfile: DBFile,
     data: Bytes,
     relative_target: String,
     overwrite_relative_target: bool,
-    size: u64,
+    _size: u64,
     _file_conversion: bool,
 ) -> Response<PutRelativeFileResponse> {
-    let dbfile = match file_db.get_dbfile(lease_id.0).await {
-        Ok(Some(f)) => f,
-        Ok(None) => return Response::NotFound,
-        Err(DBFileError::Connection(e)) => {
-            error!("db connection error {e:?}");
-            return Response::InternalServerError;
-        }
-        Err(_) => return Response::InternalServerError, // TODO: Better Other error handling
-    };
-
     let path = dbfile.parent_folder() + &relative_target;
 
     if !overwrite_relative_target {
@@ -196,7 +210,18 @@ async fn handle_put_relative_specific(
             }
         };
     }
-    // TODO: Create UploadLease, DBFile
+
+    // Add a new DBFile to the database
+    let dbfile = DBFile::with_path_and_user(&path, user);
+    match file_db.add_dbfile(&dbfile).await {
+        Ok(_) => {}
+        Err(e) => {
+            // At this stage the file should never be locked
+            debug_assert!(!matches!(e, DBFileError::Locked(_)));
+            return Response::InternalServerError;
+        }
+    }
+
     match filesystem
         .upload(Bucket::UserFiles, &path, data.into())
         .await
@@ -212,4 +237,21 @@ async fn handle_put_relative_specific(
             Response::InternalServerError
         }
     }
+}
+
+async fn handle_put_relative_file_suggested(
+    filesystem: impl Filesystem,
+    file_db: impl DBFileStore + UploadLeaseStore,
+    user: &User,
+    dbfile: DBFile,
+    data: Bytes,
+    suggested_target: String,
+    size: u64,
+    _file_conversion: bool,
+) -> Response<PutRelativeFileResponse> {
+    // Parse suggested_target as extension or full file name
+    let mut suggestion = suggested_target.clone();
+    if suggested_target.starts_with('.') {}
+
+    todo!()
 }
