@@ -251,7 +251,54 @@ async fn handle_put_relative_file_suggested(
 ) -> Response<PutRelativeFileResponse> {
     // Parse suggested_target as extension or full file name
     let mut suggestion = suggested_target.clone();
-    if suggested_target.starts_with('.') {}
+    if suggested_target.starts_with('.') {
+        suggestion = dbfile.name() + &suggestion;
+    }
 
-    todo!()
+    let mut counter = 1;
+    let mut path = String::new();
+
+    // Try so long until you don't find a dbfile with the specified path
+    loop {
+        path = dbfile.parent_folder() + "\\" + &suggestion;
+        match file_db.get_dbfile_by_path(&path).await {
+            Ok(Some(f)) => f,
+            Ok(None) => break,
+            Err(e) => {
+                error!("error {e:?} while searching for path {suggestion}");
+                return Response::InternalServerError;
+            }
+        };
+        counter += 1;
+        suggestion = counter.to_string() + &suggestion;
+    }
+
+    let new_file = DBFile::with_path_and_user(&path, user);
+
+    match file_db.add_dbfile(&new_file).await {
+        Ok(_) => {}
+        Err(e) => {
+            error!("error {e:?} while adding dbfile {new_file:?}");
+            return Response::InternalServerError;
+        }
+    }
+
+    match filesystem
+        .upload(Bucket::UserFiles, &path, data.into())
+        .await
+    {
+        Ok(_) => {}
+        Err(e) => {
+            error!("error {e:?} while uploading new file to filesystem");
+            // TODO: Try to remove dbfile again
+            return Response::InternalServerError;
+        }
+    }
+
+    Response::Ok(PutRelativeFileResponse::Ok(PutRelativeFileResponseBody {
+        name: suggestion,
+        url: todo!(),
+        host_view_url: todo!(),
+        host_edit_url: todo!(),
+    }))
 }

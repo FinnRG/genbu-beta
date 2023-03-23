@@ -9,6 +9,9 @@ use crate::stores::{
     DataStore, Reset, Setup, Uuid,
 };
 
+pub mod access_token;
+pub mod file;
+
 #[derive(Clone, Debug)]
 pub struct PgStore {
     pub(crate) conn: PgPool,

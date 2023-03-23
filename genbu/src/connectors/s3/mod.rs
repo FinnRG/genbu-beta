@@ -9,7 +9,6 @@ use crate::stores::{
     Reset, Setup,
 };
 
-pub mod database;
 pub mod filesystem;
 pub mod storage;
 
