@@ -81,5 +81,5 @@ pub trait FileStorage: Reset + Setup + Clone + Sized + Send + Sync + 'static {
         upload_id: &str,
         parts: Vec<Part>,
     ) -> Result<()>;
-    async fn upload(&mut self, bucket: Bucket, name: &str, data: Vec<u8>) -> Result<()>;
+    async fn upload(&self, bucket: Bucket, name: &str, data: Vec<u8>) -> Result<()>;
 }

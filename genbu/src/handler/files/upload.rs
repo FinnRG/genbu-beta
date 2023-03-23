@@ -105,7 +105,7 @@ pub async fn get(
 ) -> Result<UploadFileResponse> {
     let lease_id = start_req.lease_id;
     let lease = lease_store
-        .get(&lease_id)
+        .get_upload_lease(&lease_id)
         .await?
         .ok_or(UploadAPIError::NotFound(Box::new(lease_id)))?;
     let (uris, upload_id) = get_presigned_upload_urls(file_storage, &lease).await?;

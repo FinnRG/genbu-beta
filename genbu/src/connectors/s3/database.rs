@@ -57,7 +57,7 @@ impl UploadLeaseStore for PgStore {
         Ok(res)
     }
 
-    async fn get(&self, id: &LeaseID) -> SResult<Option<UploadLease>> {
+    async fn get_upload_lease(&self, id: &LeaseID) -> SResult<Option<UploadLease>> {
         let res = sqlx::query_as!(
             UploadLease,
             r#"select id as "id: LeaseID",owner,s3_upload_id,name,bucket as "bucket: Bucket",completed,size,created_at,expires_at
@@ -84,7 +84,7 @@ impl UploadLeaseStore for PgStore {
     }
 
     async fn mark_completed(&mut self, id: &LeaseID) -> SResult<Option<UploadLease>> {
-        let lease = self.get(id).await?;
+        let lease = self.get_upload_lease(id).await?;
         let Some(lease) = lease else {
             return Ok(None);
         };
@@ -242,6 +242,15 @@ impl DBFileStore for PgStore {
                 from file
                 where id = $1
             "#, file_id).fetch_optional(&self.conn).await?;
+        Ok(res)
+    }
+
+    async fn get_dbfile_by_path(&self, path: &str) -> FileResult<Option<DBFile>> {
+        let res = sqlx::query_as!(DBFile, r#"
+                select id as "id: LeaseID",path,lock as "lock: FileLock",lock_expires_at,created_by,created_at
+                from file
+                where path = $1
+            "#, path).fetch_optional(&self.conn).await?;
         Ok(res)
     }
 }

@@ -123,7 +123,7 @@ impl FileStorage for S3Store {
             .map_err(map_sdk_err)
     }
 
-    async fn upload(&mut self, bucket: Bucket, name: &str, data: Vec<u8>) -> Result<(), FileError> {
+    async fn upload(&self, bucket: Bucket, name: &str, data: Vec<u8>) -> Result<(), FileError> {
         self.client
             .put_object()
             .bucket(bucket.to_bucket_name())

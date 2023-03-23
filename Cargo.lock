@@ -1204,6 +1204,7 @@ dependencies = [
  "axum-prometheus",
  "bytes",
  "dotenvy",
+ "futures",
  "genbu-auth",
  "http",
  "http-body",

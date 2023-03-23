@@ -68,7 +68,7 @@ pub trait UploadLeaseStore {
 
     async fn delete(&mut self, id: &LeaseID) -> SResult<Option<UploadLease>>;
 
-    async fn get(&self, id: &LeaseID) -> SResult<Option<UploadLease>>;
+    async fn get_upload_lease(&self, id: &LeaseID) -> SResult<Option<UploadLease>>;
     async fn get_by_user(&self, id: &Uuid) -> SResult<Vec<UploadLease>>;
 
     async fn mark_completed(&mut self, id: &LeaseID) -> SResult<Option<UploadLease>>;
@@ -125,6 +125,14 @@ impl DBFile {
             created_by: user.id,
             created_at: now,
         }
+    }
+
+    pub fn parent_folder(&self) -> String {
+        if self.path.len() == 0 {
+            return String::new();
+        }
+        let parts = self.path.split_terminator('\\').collect::<Vec<_>>();
+        parts[..parts.len() - 1].join("\\")
     }
 
     #[must_use]
@@ -198,6 +206,7 @@ pub type FileResult<T> = Result<T, DBFileError>;
 #[async_trait::async_trait]
 pub trait DBFileStore {
     async fn get_dbfile(&self, file_id: Uuid) -> FileResult<Option<DBFile>>;
+    async fn get_dbfile_by_path(&self, path: &str) -> FileResult<Option<DBFile>>;
     async fn validate_lock(&self, file_id: Uuid, lock: FileLock) -> FileResult<Option<bool>> {
         let Some(file) = self.get_dbfile(file_id).await? else {
             return Ok(None);
