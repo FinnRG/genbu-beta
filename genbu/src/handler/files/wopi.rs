@@ -256,7 +256,7 @@ async fn handle_put_relative_file_suggested(
     }
 
     let mut counter = 1;
-    let mut path = String::new();
+    let mut path;
 
     // Try so long until you don't find a dbfile with the specified path
     loop {

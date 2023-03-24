@@ -1,15 +1,20 @@
-use axum::{extract::Query, response::IntoResponse, routing::get, Extension, Json, Router};
+use axum::{
+    extract::{Query, State},
+    response::IntoResponse,
+    routing::get,
+    Extension, Json, Router,
+};
 use genbu_auth::authn::Claims;
 
 use crate::{
     handler::files::userfiles::{self as handler, DeleteUserfileRequest, GetUserfilesRequest},
-    stores::files::filesystem::Filesystem,
+    server::routes::AppState,
 };
 
-pub fn router<F: Filesystem>() -> Router {
+pub fn router<S: AppState>() -> Router<S> {
     Router::new().route(
         "/api/filesystem",
-        get(get_userfiles::<F>).delete(delete_userfile::<F>),
+        get(get_userfiles::<S>).delete(delete_userfile::<S>),
     )
 }
 
@@ -24,13 +29,13 @@ pub fn router<F: Filesystem>() -> Router {
         (status = 200, description = "List all userfiles successfully", body = GetUserfilesResponse)
     )
 )]
-pub async fn get_userfiles<F: Filesystem>(
-    Extension(filesystem): Extension<F>,
+pub async fn get_userfiles<S: AppState>(
+    State(state): State<S>,
     Extension(claims): Extension<Claims>,
     Query(req): Query<GetUserfilesRequest>,
 ) -> handler::UserfilesAPIResult<impl IntoResponse> {
     Ok(Json(
-        handler::get_userfiles(filesystem, claims.sub, &req).await?,
+        handler::get_userfiles(state.file(), claims.sub, &req).await?,
     ))
 }
 
@@ -43,11 +48,11 @@ pub async fn get_userfiles<F: Filesystem>(
         (status = 200, description = "File deleted successfully")
     )
 )]
-pub async fn delete_userfile<F: Filesystem>(
-    Extension(filesystem): Extension<F>,
+pub async fn delete_userfile<S: AppState>(
+    State(state): State<S>,
     Extension(claims): Extension<Claims>,
     Query(req): Query<DeleteUserfileRequest>,
 ) -> handler::UserfilesAPIResult<()> {
-    handler::delete_userfile(filesystem, claims.sub, req).await?;
+    handler::delete_userfile(state.file(), claims.sub, req).await?;
     Ok(())
 }

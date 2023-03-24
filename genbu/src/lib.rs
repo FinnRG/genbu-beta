@@ -1,4 +1,9 @@
-#![feature(let_chains, is_some_and, type_alias_impl_trait)]
+#![feature(
+    let_chains,
+    is_some_and,
+    type_alias_impl_trait,
+    return_position_impl_trait_in_trait
+)]
 #![allow(clippy::missing_errors_doc, clippy::module_name_repetitions)]
 pub mod connectors;
 pub mod handler;

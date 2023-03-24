@@ -1,7 +1,8 @@
 use std::fmt::Debug;
 
 use genbu_server::connectors::{postgres::PgStore, s3};
-use genbu_server::server::builder::GenbuServerBuilder;
+use genbu_server::server::builder::GenbuServer;
+use genbu_server::server::routes::ServerAppState;
 use genbu_server::stores::{DataStore, Setup};
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 use opentelemetry::sdk::propagation::TraceContextPropagator;
@@ -58,11 +59,8 @@ async fn main() -> Result<(), impl Debug> {
     info!("Trying to connect to S3");
     s3_store.setup().await.expect("unable to setup S3");
 
+    let state = ServerAppState::new(pg_store, s3_store, "http://localhost:8080/".to_owned());
+
     info!("Starting server");
-    let server = GenbuServerBuilder::new()
-        .with_store(pg_store)
-        .with_file_store(s3_store)
-        .build()
-        .unwrap();
-    server.start().await
+    GenbuServer::new(state).start().await
 }

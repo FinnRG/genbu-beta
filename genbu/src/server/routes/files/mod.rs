@@ -1,5 +1,5 @@
 use axum::{
-    extract::Query,
+    extract::{Query, State},
     middleware,
     response::{IntoResponse, Redirect},
     routing::{get, post},
@@ -35,21 +35,22 @@ use crate::{
 
 use self::wopi::{Wopi, WopiResponse};
 
+use super::AppState;
+
 pub mod userfiles;
 pub mod wopi;
 
-pub fn router<F: Filesystem, L: DataStore>() -> Router {
+pub fn router<S: AppState>() -> Router<S> {
     Router::new()
-        .merge(userfiles::router::<F>())
-        .route("/api/files/download", get(start_download::<F>))
-        .route("/api/files/upload", post(upload_file_request::<F, L>)) // TODO: COnsider using put
+        .merge(userfiles::router())
+        .route("/api/files/download", get(start_download::<S>))
+        .route("/api/files/upload", post(upload_file_request::<S>)) // TODO: COnsider using put
         // instead of post,
-        .route("/api/files/upload/finish", post(finish_upload::<F, L>))
+        .route("/api/files/upload/finish", post(finish_upload::<S>))
         .route(
             "/api/wopi/files/:id",
-            get(wopi_check_file_info::<F, L>), // .post(todo!())
+            get(wopi_check_file_info::<S>), // .post(todo!())
         )
-        .route_layer(middleware::from_fn(auth))
     // TODO: Add auth middleware back
 }
 
@@ -62,22 +63,21 @@ pub fn router<F: Filesystem, L: DataStore>() -> Router {
         (status = 307, description = "Redirect to file location")
     )
 )]
-pub async fn start_download<F: Filesystem>(
-    Extension(file_storage): Extension<F>,
+pub async fn start_download<S: AppState>(
+    State(state): State<S>,
     Extension(user): Extension<Claims>,
     Query(req): Query<StartDownloadRequest>,
 ) -> download_handler::DownloadAPIResult<Redirect> {
-    let redirect = download_handler::start_download(file_storage, user.sub, req).await?;
+    let redirect = download_handler::start_download(state.file(), user.sub, req).await?;
     Ok(Redirect::temporary(&redirect))
 }
 
-pub async fn wopi_check_file_info<F: Filesystem, D: DataStore>(
-    Extension(file_storage): Extension<F>,
-    Extension(db_file_store): Extension<D>,
+pub async fn wopi_check_file_info<S: AppState>(
+    State(state): State<S>,
     Wopi(req): Wopi<Bytes>,
 ) -> impl IntoResponse {
     let user = User::template();
-    let resp = wopi_handler::wopi_file(file_storage, db_file_store, &user, req).await;
+    let resp = wopi_handler::wopi_file(state.file(), state.store(), &user, req).await;
     WopiResponse(resp)
 }
 
@@ -92,14 +92,13 @@ pub async fn wopi_check_file_info<F: Filesystem, D: DataStore>(
         (status = 409, description = "Upload request is forbidden (i.e. file is too large)")
     )
 )]
-pub async fn upload_file_request<F: FileStorage, L: DataStore>(
-    Extension(file_storage): Extension<F>,
-    Extension(lease_store): Extension<L>,
+pub async fn upload_file_request<S: AppState>(
+    State(state): State<S>,
     Extension(user): Extension<Claims>,
     Json(req): Json<handler::UploadFileRequest>,
 ) -> handler::UploadAPIResult<Json<handler::UploadFileResponse>> {
     Ok(Json(
-        handler::post(file_storage, lease_store, user.sub, req).await?,
+        handler::post(state.file(), state.store(), user.sub, req).await?,
     ))
 }
 
@@ -113,12 +112,11 @@ pub async fn upload_file_request<F: FileStorage, L: DataStore>(
         (status = 500, description = "An internal error occured while uploading")
     )
 )]
-pub async fn finish_upload<F: FileStorage, L: DataStore>(
-    Extension(file_storage): Extension<F>,
-    Extension(lease_store): Extension<L>,
+pub async fn finish_upload<S: AppState>(
+    State(state): State<S>,
     Json(req): Json<handler::FinishUploadRequest>,
 ) -> handler::UploadAPIResult<()> {
-    handler::finish_upload(file_storage, lease_store, req).await
+    handler::finish_upload(state.file(), state.store(), req).await
 }
 
 impl IntoResponse for FileError {

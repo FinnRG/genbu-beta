@@ -1,5 +1,5 @@
 use axum::{
-    extract::Path,
+    extract::{Path, State},
     http::HeaderValue,
     middleware,
     response::{AppendHeaders, IntoResponse},
@@ -21,19 +21,21 @@ use crate::{
     },
 };
 
-pub fn router<DS: DataStore>() -> Router {
+use super::AppState;
+
+pub fn router<S: AppState>() -> Router<S> {
     Router::new()
         .route(
             "/api/user/:id",
-            get(get_user::<DS>)
-                .delete(delete_user::<DS>)
-                .patch(update_user::<DS>),
+            get(get_user::<S>)
+                .delete(delete_user::<S>)
+                .patch(update_user::<S>),
         )
-        .route("/api/user/all", get(get_users::<DS>))
-        .route("/api/user", post(create_user::<DS>))
+        .route("/api/user/all", get(get_users::<S>))
+        .route("/api/user", post(create_user::<S>))
         .route_layer(middleware::from_fn(auth))
-        .route("/api/register", post(register::<DS>))
-        .route("/api/login", post(login::<DS>))
+        .route("/api/register", post(register::<S>))
+        .route("/api/login", post(login::<S>))
 }
 
 #[utoipa::path(
@@ -46,11 +48,11 @@ pub fn router<DS: DataStore>() -> Router {
         ("id" = Uuid, Path, description = "User database id")
     )
 )]
-async fn get_user<DS: DataStore>(
-    Extension(user_store): Extension<DS>,
+async fn get_user<S: AppState>(
+    State(state): State<S>,
     Path(user_id): Path<Uuid>,
 ) -> handler::users::UserAPIResult<impl IntoResponse> {
-    let user = handler::users::get(user_store, user_id).await;
+    let user = handler::users::get(state.store(), user_id).await;
     Ok(Json(user?))
 }
 
@@ -61,10 +63,10 @@ async fn get_user<DS: DataStore>(
         (status = 200, description = "List all users successfully", body = [User])
     )
 )]
-async fn get_users<DS: DataStore>(
-    Extension(user_store): Extension<DS>,
+async fn get_users<S: AppState>(
+    State(state): State<S>,
 ) -> handler::users::UserAPIResult<impl IntoResponse> {
-    Ok(Json(handler::users::get_all(user_store).await?))
+    Ok(Json(handler::users::get_all(state.store()).await?))
 }
 
 #[derive(Clone, Serialize, Deserialize, ToSchema)]
@@ -84,11 +86,11 @@ pub struct UserResponse {
         (status = 409, description = "User data already exists in the database")
     )
 )]
-async fn create_user<DS: DataStore>(
-    Extension(user_store): Extension<DS>,
+async fn create_user<S: AppState>(
+    State(state): State<S>,
     Json(new_user): Json<handler::users::CreateUserRequest>,
 ) -> handler::users::UserAPIResult<impl IntoResponse> {
-    let user_id = handler::users::create(user_store, new_user).await?;
+    let user_id = handler::users::create(state.store(), new_user).await?;
     Ok(Json(UserResponse { id: user_id }))
 }
 
@@ -128,11 +130,11 @@ fn start_session_response(id: Uuid) -> Result<impl IntoResponse, StatusCode> {
         (status = 409, description = "User data already exists in the database")
     )
 )]
-async fn register<DS: DataStore>(
-    Extension(user_store): Extension<DS>,
+async fn register<S: AppState>(
+    State(state): State<S>,
     Json(new_user): Json<handler::users::CreateUserRequest>,
 ) -> handler::users::UserAPIResult<impl IntoResponse> {
-    let id = handler::users::auth::register_password(user_store, new_user).await?;
+    let id = handler::users::auth::register_password(state.store(), new_user).await?;
     Ok(start_session_response(id))
 }
 
@@ -149,11 +151,11 @@ async fn register<DS: DataStore>(
         (status = 401, description = "Wrong credentials")
     )
 )]
-async fn login<DS: DataStore>(
-    Extension(user_store): Extension<DS>,
+async fn login<S: AppState>(
+    State(state): State<S>,
     Json(login_req): Json<handler::users::auth::LoginRequest>,
 ) -> handler::users::UserAPIResult<impl IntoResponse> {
-    let user_id = handler::users::auth::login_password(user_store, login_req).await?;
+    let user_id = handler::users::auth::login_password(state.store(), login_req).await?;
     Ok(start_session_response(user_id))
 }
 
@@ -169,11 +171,11 @@ async fn login<DS: DataStore>(
         ("id" = Uuid, Path, description = "User database id")
     )
 )]
-async fn delete_user<DS: DataStore>(
-    Extension(user_store): Extension<DS>,
+async fn delete_user<S: AppState>(
+    State(state): State<S>,
     Path(user_id): Path<Uuid>,
 ) -> handler::users::UserAPIResult<impl IntoResponse> {
-    Ok(Json(handler::users::delete(user_store, user_id).await?))
+    Ok(Json(handler::users::delete(state.store(), user_id).await?))
 }
 
 #[utoipa::path(
@@ -186,13 +188,13 @@ async fn delete_user<DS: DataStore>(
         ("id" = Uuid, Path, description = "User database id")
     )
 )]
-async fn update_user<DS: DataStore>(
-    Extension(user_store): Extension<DS>,
+async fn update_user<S: AppState>(
+    State(state): State<S>,
     Path(user_id): Path<Uuid>,
     Json(req): Json<UserUpdate>,
 ) -> handler::users::UserAPIResult<impl IntoResponse> {
     Ok(Json(
-        handler::users::update(user_store, user_id, req).await?,
+        handler::users::update(state.store(), user_id, req).await?,
     ))
 }
 

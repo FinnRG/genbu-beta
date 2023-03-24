@@ -7,7 +7,7 @@ use axum::{
 };
 use genbu_server::{
     connectors::{postgres::PgStore, s3},
-    server::builder::GenbuServerBuilder,
+    server::{builder::GenbuServer, routes::ServerAppState},
     stores::{DataStore, Reset, Setup, Uuid},
 };
 use http_body::combinators::UnsyncBoxBody;
@@ -100,27 +100,21 @@ impl TestClient {
 }
 
 pub async fn build_app() -> Router {
-    let _pg_store = PgStore::new(build_connection_string(&Uuid::new_v4().to_string()))
+    let mut pg_store = PgStore::new(build_connection_string(&Uuid::new_v4().to_string()))
         // TODO:
         // Make
         // this
         // configurable
         .await
         .unwrap();
-    let mut store = _pg_store;
-    store.reset().await.expect("Unable to reset store");
-    store.setup().await.expect("Unable to setup store");
+    pg_store.setup().await.expect("Unable to setup store");
     let mut file_store = s3::S3Store::new().await;
     file_store
         .setup()
         .await
         .expect("Unable to setup file_store");
-    GenbuServerBuilder::new()
-        .with_store(store.clone())
-        .with_file_store(s3::S3Store::new().await)
-        .build()
-        .unwrap()
-        .app()
+    let state = ServerAppState::new(pg_store, file_store, "http://localhost:8080/".to_owned());
+    GenbuServer::new(state).app()
 }
 
 pub fn build_connection_string(db_name: &str) -> String {
