@@ -160,7 +160,7 @@ impl Setup for PgStore {
         self.conn.close().await;
         sqlx::Postgres::create_database(&self.conn_str).await?;
         self.conn = PgPool::connect(&self.conn_str).await?;
-        sqlx::migrate!().run(&self.conn).await?;
+        sqlx::migrate!("../migrations").run(&self.conn).await?;
         Ok(())
     }
 }
