@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use tracing::{error, trace};
+use tracing::{debug, error, trace};
 use wopi_rs::{
     file::{
         CheckFileInfoRequest, CheckFileInfoResponse, FileRequest, FileRequestType, LockRequest,
@@ -135,6 +135,7 @@ async fn handle_put_relative(
             size,
             file_conversion,
         } => {
+            debug!("Processing PutRelativeFile in Specific mode");
             handle_put_relative_specific(
                 state,
                 user,
@@ -152,6 +153,7 @@ async fn handle_put_relative(
             size,
             file_conversion,
         } => {
+            debug!("Processing PutRelativeFile in Suggested mode");
             handle_put_relative_file_suggested(
                 state,
                 user,
@@ -224,7 +226,7 @@ async fn handle_put_relative_specific(
     {
         Ok(_) => Response::Ok(PutRelativeFileResponse::Ok(PutRelativeFileResponseBody {
             name: relative_target,
-            url: todo!(),
+            url: format!("{}/api/wopi/files/{}", state.host(), dbfile.id),
             host_view_url: todo!(),
             host_edit_url: todo!(),
         })),

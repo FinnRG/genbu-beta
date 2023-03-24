@@ -16,6 +16,12 @@ use super::storage::Bucket;
 #[serde(transparent)]
 pub struct LeaseID(pub Uuid);
 
+impl Display for LeaseID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum UploadLeaseError {
     #[error("unable to establish a file storage connection")]

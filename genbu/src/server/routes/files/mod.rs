@@ -46,7 +46,7 @@ pub fn router<S: AppState>() -> Router<S> {
             "/api/wopi/files/:id",
             get(wopi_check_file_info::<S>), // .post(todo!())
         )
-    // TODO: Add auth middleware back
+        .route_layer(middleware::from_fn(auth))
 }
 
 #[utoipa::path(
