@@ -6,10 +6,11 @@ use axum::{
     routing::{get, post},
     Extension, Json, Router,
 };
-use axum_extra::extract::cookie::{Cookie, SameSite};
+use axum_extra::extract::cookie::{Cookie, Expiration, SameSite};
 use genbu_auth::authn;
 use hyper::{header, StatusCode};
 use serde::{Deserialize, Serialize};
+use time::Duration;
 use utoipa::ToSchema;
 
 use crate::{
@@ -17,7 +18,7 @@ use crate::{
     server::middlewares::auth::auth,
     stores::{
         users::{UserError, UserUpdate},
-        DataStore, Uuid,
+        DataStore, OffsetDateTime, Uuid,
     },
 };
 
@@ -104,11 +105,16 @@ async fn create_user<S: AppState>(
 fn start_session_response(id: Uuid) -> Result<impl IntoResponse, StatusCode> {
     let token = authn::create_jwt(id)?;
 
-    let cookie = Cookie::build("Token", token)
-        .secure(true)
+    let mut cookie = Cookie::build("Token", token)
+        .expires(OffsetDateTime::now_utc() + Duration::days(1)) // TODO: Rethink if 1 day is a good expiration time
         .http_only(true)
         .same_site(SameSite::Strict)
         .finish();
+
+    if !cfg!(debug_assertions) {
+        cookie.set_secure(Some(true));
+    }
+
     let set_cookie_header = HeaderValue::from_str(&cookie.to_string())
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok((
