@@ -1,5 +1,69 @@
 {
   "db": "PostgreSQL",
+  "00eeafc623ff8d38d81bbebb4bdbd121ac2adb47ee56976e33bba65393ad9e0b": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id: LeaseID",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "path",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "lock: FileLock",
+          "ordinal": 2,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "lock_expires_at",
+          "ordinal": 3,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "created_by",
+          "ordinal": 4,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 5,
+          "type_info": "Timestamptz"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true,
+        true,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Text",
+          "Uuid"
+        ]
+      }
+    },
+    "query": "\n                insert into file (id, path, created_by)\n                values ($1, $2, $3)\n                returning id as \"id: LeaseID\",path,lock as \"lock: FileLock\",lock_expires_at,created_by,created_at\n            "
+  },
+  "116bede53099235bd911941381e4f090a5c928a650170de53de5bde590243a5b": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "\n            delete from access_token\n            where token = $1\n        "
+  },
   "18f52aecb6371f8fd217fa6722b1a97509e8bda9406b863ce0775e332775bbd8": {
     "describe": {
       "columns": [
@@ -98,6 +162,56 @@
     },
     "query": "insert into upload_lease (id, owner, name, s3_upload_id, bucket, size, expires_at)\n                values ($1, $2, $3, $4, $5, $6, $7)\n                returning id as \"id: LeaseID\",owner,s3_upload_id,name,bucket as \"bucket: Bucket\",completed,size,created_at,expires_at"
   },
+  "1b8b31fab41512a136a4a683fa3eb34d1b67f1e3edba5fb34eaca7a46ae61f6a": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id: LeaseID",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "path",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "lock: FileLock",
+          "ordinal": 2,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "lock_expires_at",
+          "ordinal": 3,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "created_by",
+          "ordinal": 4,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 5,
+          "type_info": "Timestamptz"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true,
+        true,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "\n                select id as \"id: LeaseID\",path,lock as \"lock: FileLock\",lock_expires_at,created_by,created_at\n                from file\n                where path = $1\n            "
+  },
   "478022e4f3060384eb3ff596e524ddf5692e205118c391cba0891bf2ae9a262f": {
     "describe": {
       "columns": [],
@@ -114,86 +228,6 @@
       }
     },
     "query": "INSERT INTO \"user\" (id, name, email, created_at, hash, avatar) VALUES ($1, $2, $3, $4, $5, $6)"
-  },
-  "4ae63f717dfd5c92366d605506868225773fc80ffa85701579da58b2516f6b4a": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id: LeaseID",
-          "ordinal": 0,
-          "type_info": "Uuid"
-        },
-        {
-          "name": "owner",
-          "ordinal": 1,
-          "type_info": "Uuid"
-        },
-        {
-          "name": "s3_upload_id",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
-          "name": "name",
-          "ordinal": 3,
-          "type_info": "Text"
-        },
-        {
-          "name": "bucket: Bucket",
-          "ordinal": 4,
-          "type_info": {
-            "Custom": {
-              "kind": {
-                "Enum": [
-                  "profileimages",
-                  "videofiles",
-                  "userfiles",
-                  "notebookfiles"
-                ]
-              },
-              "name": "bucket"
-            }
-          }
-        },
-        {
-          "name": "completed",
-          "ordinal": 5,
-          "type_info": "Bool"
-        },
-        {
-          "name": "size",
-          "ordinal": 6,
-          "type_info": "Int8"
-        },
-        {
-          "name": "created_at",
-          "ordinal": 7,
-          "type_info": "Timestamptz"
-        },
-        {
-          "name": "expires_at",
-          "ordinal": 8,
-          "type_info": "Timestamptz"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false,
-        false
-      ],
-      "parameters": {
-        "Left": [
-          "Uuid"
-        ]
-      }
-    },
-    "query": "select id as \"id: LeaseID\",owner,s3_upload_id,name,bucket as \"bucket: Bucket\",completed,size,created_at,expires_at\n                from \"upload_lease\" where owner = $1"
   },
   "4e618d97f4870f5b3095c082d1ce2145c6bf9da0c8d9b53992ae98af75a4a737": {
     "describe": {
@@ -325,57 +359,7 @@
     },
     "query": "DELETE FROM \"user\" WHERE id = $1 RETURNING id,name,email,created_at,hash,avatar as \"avatar: UserAvatar\""
   },
-  "7e8cc34d958f0332d6188040951012742bdc2a746df450e60dd21eef1da99992": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Uuid"
-        },
-        {
-          "name": "name",
-          "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
-          "name": "email",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
-          "name": "created_at",
-          "ordinal": 3,
-          "type_info": "Timestamptz"
-        },
-        {
-          "name": "hash",
-          "ordinal": 4,
-          "type_info": "Text"
-        },
-        {
-          "name": "avatar: UserAvatar",
-          "ordinal": 5,
-          "type_info": "Uuid"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false,
-        false,
-        false,
-        true
-      ],
-      "parameters": {
-        "Left": [
-          "Uuid"
-        ]
-      }
-    },
-    "query": "SELECT id,name,email,created_at,hash,avatar as \"avatar: UserAvatar\" FROM \"user\" WHERE id = $1"
-  },
-  "7efdc63749634143e656e120a271b6592041f34f487d7e415067c77fae564727": {
+  "6cf7388aee6e4d96dfd09ac2e54d1b05f7af52243e74797f9e4204af7cb4a846": {
     "describe": {
       "columns": [
         {
@@ -453,7 +437,57 @@
         ]
       }
     },
-    "query": "select id as \"id: LeaseID\",owner,s3_upload_id,name,bucket as \"bucket: Bucket\",completed,size,created_at,expires_at\n                from \"upload_lease\" where id = $1"
+    "query": "update \"upload_lease\"\n                set completed = true\n                where id = $1\n                returning id as \"id: LeaseID\",owner,s3_upload_id,name,bucket as \"bucket: Bucket\",completed,size,created_at,expires_at\n            "
+  },
+  "7e8cc34d958f0332d6188040951012742bdc2a746df450e60dd21eef1da99992": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "email",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 3,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "hash",
+          "ordinal": 4,
+          "type_info": "Text"
+        },
+        {
+          "name": "avatar: UserAvatar",
+          "ordinal": 5,
+          "type_info": "Uuid"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "SELECT id,name,email,created_at,hash,avatar as \"avatar: UserAvatar\" FROM \"user\" WHERE id = $1"
   },
   "87cb82a38b7b94021b389ae8d8b3b501afe0212af07b315b0041ff98abb055ed": {
     "describe": {
@@ -502,6 +536,28 @@
       }
     },
     "query": "SELECT id,name,email,created_at,hash,avatar as \"avatar: UserAvatar\" FROM \"user\""
+  },
+  "89345c634139c7559634f9ca17cdfee1ffc01745f7cafa1dbf54d9378dbac04a": {
+    "describe": {
+      "columns": [
+        {
+          "name": "token",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Uuid",
+          "Inet"
+        ]
+      }
+    },
+    "query": "\n            insert into access_token (user_id, file_id, created_from)\n            values ($1, $2, $3)\n            returning token\n        "
   },
   "8af26efab4bac9206a8bedca618c3305bba1617fe99675c63c8b70b39537bab2": {
     "describe": {
@@ -556,57 +612,7 @@
     },
     "query": "\n                UPDATE \"user\"\n                SET email = coalesce($1, \"user\".email),\n                    avatar = coalesce($2, \"user\".avatar),\n                    name = coalesce($3, \"user\".name)\n                WHERE id = $4\n                RETURNING id,name,email,hash,created_at,avatar as \"avatar: UserAvatar\"\n            "
   },
-  "ceae95d63a6361bbc6d280cf211005cfc05996b40d876374d30adf0893b0938b": {
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Uuid"
-        },
-        {
-          "name": "name",
-          "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
-          "name": "email",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
-          "name": "hash",
-          "ordinal": 3,
-          "type_info": "Text"
-        },
-        {
-          "name": "created_at",
-          "ordinal": 4,
-          "type_info": "Timestamptz"
-        },
-        {
-          "name": "avatar: UserAvatar",
-          "ordinal": 5,
-          "type_info": "Uuid"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false,
-        false,
-        false,
-        true
-      ],
-      "parameters": {
-        "Left": [
-          "Text"
-        ]
-      }
-    },
-    "query": "SELECT id,name,email,hash,created_at,avatar as \"avatar: UserAvatar\" FROM \"user\" WHERE email = $1"
-  },
-  "d5116d357e25c8aa791051d07a27924d55ceb07e2a199957e741cad154083521": {
+  "957d34ee5e06087749f20231a2562823af632232282b75433ee1891821b9cd6d": {
     "describe": {
       "columns": [
         {
@@ -684,6 +690,249 @@
         ]
       }
     },
-    "query": "update \"upload_lease\"\n                set completed = true\n                where id = $1 and expires_at < now()\n                returning id as \"id: LeaseID\",owner,s3_upload_id,name,bucket as \"bucket: Bucket\",completed,size,created_at,expires_at\n            "
+    "query": "select id as \"id: LeaseID\",owner,s3_upload_id,name,bucket as \"bucket: Bucket\",completed,size,created_at,expires_at\n                from \"upload_lease\"\n                where owner = $1"
+  },
+  "9d2b1e4a31505919e2ff93b6e799167a4154205cc8815c304547516e16977a31": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id: LeaseID",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Timestamptz",
+          "Uuid"
+        ]
+      }
+    },
+    "query": "\n                update file\n                set lock_expires_at = $1\n                where id = $2\n                returning id as \"id: LeaseID\"\n            "
+  },
+  "bc6ccf92bc761cddba286812e8cd79cafe5ef40e356b6a1cbcc8348dd5528d89": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id: LeaseID",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "path",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "lock: FileLock",
+          "ordinal": 2,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "lock_expires_at",
+          "ordinal": 3,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "created_by",
+          "ordinal": 4,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 5,
+          "type_info": "Timestamptz"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true,
+        true,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "\n                select id as \"id: LeaseID\",path,lock as \"lock: FileLock\",lock_expires_at,created_by,created_at\n                from file\n                where id = $1\n            "
+  },
+  "be827cd48f6edfdc324abacc345baf5ca8130cabbd52a8728f6b34b1cba61b48": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id: LeaseID",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "owner",
+          "ordinal": 1,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "s3_upload_id",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "name",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "bucket: Bucket",
+          "ordinal": 4,
+          "type_info": {
+            "Custom": {
+              "kind": {
+                "Enum": [
+                  "profileimages",
+                  "videofiles",
+                  "userfiles",
+                  "notebookfiles"
+                ]
+              },
+              "name": "bucket"
+            }
+          }
+        },
+        {
+          "name": "completed",
+          "ordinal": 5,
+          "type_info": "Bool"
+        },
+        {
+          "name": "size",
+          "ordinal": 6,
+          "type_info": "Int8"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 7,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "expires_at",
+          "ordinal": 8,
+          "type_info": "Timestamptz"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "select id as \"id: LeaseID\",owner,s3_upload_id,name,bucket as \"bucket: Bucket\",completed,size,created_at,expires_at\n                from \"upload_lease\"\n                where id = $1"
+  },
+  "c30f4f9ecc452b9067a1dc5cd22d637d998af7b1e67907416f085cff678e9134": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id: LeaseID",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "\n                update file\n                set lock = null,lock_expires_at = null\n                where id = $1\n                returning id as \"id: LeaseID\"\n            "
+  },
+  "ceae95d63a6361bbc6d280cf211005cfc05996b40d876374d30adf0893b0938b": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "email",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "hash",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 4,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "avatar: UserAvatar",
+          "ordinal": 5,
+          "type_info": "Uuid"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "SELECT id,name,email,hash,created_at,avatar as \"avatar: UserAvatar\" FROM \"user\" WHERE email = $1"
+  },
+  "f9de876e7431cfad757032e06d1336387ba7f2c5dbdf8be67904fd434abdd643": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id: LeaseID",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Timestamptz",
+          "Uuid"
+        ]
+      }
+    },
+    "query": "\n                update file\n                set lock = $1, lock_expires_at = $2\n                where id = $3\n                returning id as \"id: LeaseID\"\n            "
   }
 }
