@@ -1,10 +1,9 @@
 use std::{iter::once, time::Duration};
 
-use crate::stores::{files::filesystem::Filesystem, DataStore};
 use axum::{
     body::{Body, BoxBody},
     routing::get,
-    Extension, Router, Server,
+    Router, Server,
 };
 use axum_prometheus::PrometheusMetricLayer;
 use http::{Request, Response};

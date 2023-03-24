@@ -129,12 +129,8 @@ impl DBFile {
     }
 
     pub fn parent_folder(&self) -> String {
-        if self.path.len() == 0 {
-            return String::new();
-        }
         let parts = self.path.split_terminator('\\').rev().collect::<Vec<_>>();
         parts.iter().skip(1).rev().join("\\")
-        // parts[1..].iter().rev().join("\\")
     }
 
     pub fn name(&self) -> String {

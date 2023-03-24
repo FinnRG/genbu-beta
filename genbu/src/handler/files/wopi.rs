@@ -12,14 +12,12 @@ use crate::stores::{
     files::{
         database::{DBFile, DBFileError, DBFileStore, LeaseID},
         filesystem::Filesystem,
-        storage::{Bucket, FileError},
+        storage::Bucket,
         UploadLeaseStore,
     },
     users::User,
     DataStore, Uuid,
 };
-
-use super::userfiles::build_path;
 
 pub async fn wopi_file(
     filesystem: impl Filesystem,

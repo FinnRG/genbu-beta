@@ -4,9 +4,9 @@ use axum::{
     middleware,
     response::{AppendHeaders, IntoResponse},
     routing::{get, post},
-    Extension, Json, Router,
+    Json, Router,
 };
-use axum_extra::extract::cookie::{Cookie, Expiration, SameSite};
+use axum_extra::extract::cookie::{Cookie, SameSite};
 use genbu_auth::authn;
 use hyper::{header, StatusCode};
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ use crate::{
     server::middlewares::auth::auth,
     stores::{
         users::{UserError, UserUpdate},
-        DataStore, OffsetDateTime, Uuid,
+        OffsetDateTime, Uuid,
     },
 };
 

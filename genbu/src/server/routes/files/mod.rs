@@ -23,13 +23,8 @@ use crate::{
     },
     server::middlewares::auth::auth,
     stores::{
-        files::{
-            filesystem::Filesystem,
-            storage::{FileError, FileStorage},
-            UploadLeaseError,
-        },
+        files::{storage::FileError, UploadLeaseError},
         users::User,
-        DataStore,
     },
 };
 
