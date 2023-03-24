@@ -1,4 +1,3 @@
-use oso::PolarClass;
 use serde::{Deserialize, Serialize};
 use time::{serde::iso8601::option as iso8601, OffsetDateTime};
 use utoipa::ToSchema;
@@ -10,7 +9,7 @@ use super::{
     FileStorage,
 };
 
-#[derive(Clone, Debug, PolarClass, Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct Userfile {
     pub name: String,
     #[serde(with = "iso8601")]

@@ -6,9 +6,8 @@ use time::{serde::iso8601, OffsetDateTime};
 use utoipa::ToSchema;
 use uuid::{Error as UuidError, Uuid};
 
-#[derive(Clone, Debug, oso::PolarClass, Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct User {
-    #[polar(attribute)]
     pub id: Uuid,
     pub name: String,
     pub email: String,
@@ -117,37 +116,4 @@ pub trait UserStore {
     async fn get_all(&self) -> SResult<Vec<User>>;
 
     async fn update(&mut self, id: &Uuid, update: UserUpdate) -> SResult<Option<User>>;
-}
-
-// TODO: Remove this test
-#[cfg(test)]
-mod tests {
-    use oso::{Oso, PolarClass};
-
-    use crate::stores::Uuid;
-
-    use super::{User, UserAvatar};
-
-    #[test]
-    fn test_oso() -> Result<(), Box<dyn std::error::Error>> {
-        let mut oso = Oso::new();
-
-        dbg!(oso.load_files(vec!["src/stores/test.polar"]))?;
-        oso.register_class(Uuid::get_polar_class())?;
-        oso.register_class(User::get_polar_class())?;
-
-        dbg!(oso.is_allowed(
-            User {
-                name: String::from("TestUser"),
-                email: String::from("test@email.com"),
-                avatar: Some(UserAvatar::new(
-                    Uuid::parse_str("f8af16d5-a014-4441-a8aa-a91a95ced6dc").unwrap()
-                )),
-                ..User::template()
-            },
-            "",
-            ""
-        ))?;
-        Ok(())
-    }
 }

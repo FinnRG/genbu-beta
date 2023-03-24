@@ -23,7 +23,6 @@ itertools = "0.10.5"
 lettre = { version = "0.10.1", features = ["tokio1-rustls-tls", "tracing", "builder", "tokio1", "hostname", "smtp-transport"], default-features = false }
 opentelemetry = { version = "0.18.0", features = ["metrics", "rt-tokio", "trace"] }
 opentelemetry-jaeger = { version = "0.17.0", features = ["rt-tokio"] }
-oso = { version = "0.26.3", features = ["uuid-10"] }
 parking_lot = "0.12.1"
 secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1.0.145", features = ["derive"] }
