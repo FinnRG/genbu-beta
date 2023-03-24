@@ -31,7 +31,7 @@ fn init_telemetry() {
         .with_service_name("genbu-server")
         .install_batch(Tokio)
         .expect("unable to install opentelemetry-jaeger");
-    let fmt_layer = tracing_subscriber::fmt::layer().json();
+    let fmt_layer = tracing_subscriber::fmt::layer().pretty();
     tracing_subscriber::registry()
         .with(fmt_layer)
         .with(tracing_opentelemetry::layer().with_tracer(jaeger_tracer))
@@ -43,9 +43,10 @@ fn init_telemetry() {
 #[tokio::main]
 async fn main() -> Result<(), impl Debug> {
     dotenvy::dotenv().expect("unable to initialize dotenvy");
+
     init_telemetry();
 
-    info!("Trying to connect to to postgres");
+    info!("Connecting to to postgres");
     let pg_store = PgStore::new("postgres://genbu:strong_password@127.0.0.1:5432/genbu".into())
         // TODO:
         // Make
@@ -56,7 +57,7 @@ async fn main() -> Result<(), impl Debug> {
 
     let mut s3_store = s3::S3Store::new().await;
 
-    info!("Trying to connect to S3");
+    info!("Connecting to S3");
     s3_store.setup().await.expect("unable to setup S3");
 
     let state = ServerAppState::new(pg_store, s3_store, "http://localhost:8080/".to_owned());

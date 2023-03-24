@@ -72,7 +72,7 @@ pub async fn wopi_check_file_info<S: AppState>(
     Wopi(req): Wopi<Bytes>,
 ) -> impl IntoResponse {
     let user = User::template();
-    let resp = wopi_handler::wopi_file(state.file(), state.store(), &user, req).await;
+    let resp = wopi_handler::wopi_file(state, &user, req).await;
     WopiResponse(resp)
 }
 

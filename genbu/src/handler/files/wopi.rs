@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use tracing::error;
+use tracing::{error, trace};
 use wopi_rs::{
     file::{
         CheckFileInfoRequest, CheckFileInfoResponse, FileRequest, FileRequestType, LockRequest,
@@ -8,20 +8,22 @@ use wopi_rs::{
     FileBody, WopiResponse,
 };
 
-use crate::stores::{
-    files::{
-        database::{DBFile, DBFileError, DBFileStore, LeaseID},
-        filesystem::Filesystem,
-        storage::Bucket,
-        UploadLeaseStore,
+use crate::{
+    server::routes::AppState,
+    stores::{
+        files::{
+            database::{DBFile, DBFileError, DBFileStore, LeaseID},
+            filesystem::Filesystem,
+            storage::Bucket,
+            FileStorage, UploadLeaseStore,
+        },
+        users::User,
+        DataStore, Uuid,
     },
-    users::User,
-    DataStore, Uuid,
 };
 
 pub async fn wopi_file(
-    filesystem: impl Filesystem,
-    file_db: impl DataStore,
+    state: impl AppState,
     user: &User,
     file_req: FileRequest<Bytes>,
 ) -> http::Response<Bytes> {
@@ -30,15 +32,11 @@ pub async fn wopi_file(
     };
     let id = LeaseID(id);
     match file_req.request {
-        FileRequestType::CheckFileInfo(r) => {
-            handle_check_file_info(file_db, user, id, r).await.into()
-        }
-        FileRequestType::Lock(r) => handle_lock(file_db, user, id, r).await.into(),
-        FileRequestType::PutRelativeFile(r) => {
-            handle_put_relative(filesystem, file_db, user, id, r)
-                .await
-                .into()
-        }
+        FileRequestType::CheckFileInfo(r) => handle_check_file_info(state.store(), user, id, r)
+            .await
+            .into(),
+        FileRequestType::Lock(r) => handle_lock(state.store(), user, id, r).await.into(),
+        FileRequestType::PutRelativeFile(r) => handle_put_relative(state, user, id, r).await.into(),
         _ => todo!(),
     }
 }
@@ -114,15 +112,14 @@ async fn handle_lock(
 }
 
 async fn handle_put_relative(
-    filesystem: impl Filesystem,
-    file_db: impl DBFileStore + UploadLeaseStore,
+    state: impl AppState,
     user: &User,
     lease_id: LeaseID,
     req: FileBody<Bytes, PutRelativeFileRequest>,
 ) -> Response<PutRelativeFileResponse> {
     let data = req.body;
     // Get the base file, from which we will place the relative file
-    let dbfile = match file_db.get_dbfile(lease_id.0).await {
+    let dbfile = match state.store().get_dbfile(lease_id.0).await {
         Ok(Some(f)) => f,
         Ok(None) => return Response::NotFound,
         Err(DBFileError::Connection(e)) => {
@@ -139,8 +136,7 @@ async fn handle_put_relative(
             file_conversion,
         } => {
             handle_put_relative_specific(
-                filesystem,
-                file_db,
+                state,
                 user,
                 dbfile,
                 data,
@@ -157,8 +153,7 @@ async fn handle_put_relative(
             file_conversion,
         } => {
             handle_put_relative_file_suggested(
-                filesystem,
-                file_db,
+                state,
                 user,
                 dbfile,
                 data,
@@ -173,8 +168,7 @@ async fn handle_put_relative(
 
 // TODO: Binary file conversion?
 async fn handle_put_relative_specific(
-    filesystem: impl Filesystem,
-    file_db: impl DBFileStore + UploadLeaseStore,
+    state: impl AppState,
     user: &User,
     dbfile: DBFile,
     data: Bytes,
@@ -183,7 +177,10 @@ async fn handle_put_relative_specific(
     _size: u64,
     _file_conversion: bool,
 ) -> Response<PutRelativeFileResponse> {
+    let file_db = state.store();
+
     let path = dbfile.parent_folder() + &relative_target;
+    trace!("constructed path {path:?}");
 
     if !overwrite_relative_target {
         match file_db.get_dbfile_by_path(&path).await {
@@ -220,7 +217,8 @@ async fn handle_put_relative_specific(
         }
     }
 
-    match filesystem
+    match state
+        .file()
         .upload(Bucket::UserFiles, &path, data.into())
         .await
     {
@@ -238,8 +236,7 @@ async fn handle_put_relative_specific(
 }
 
 async fn handle_put_relative_file_suggested(
-    filesystem: impl Filesystem,
-    file_db: impl DBFileStore + UploadLeaseStore,
+    state: impl AppState,
     user: &User,
     dbfile: DBFile,
     data: Bytes,
@@ -247,6 +244,8 @@ async fn handle_put_relative_file_suggested(
     size: u64,
     _file_conversion: bool,
 ) -> Response<PutRelativeFileResponse> {
+    let file_db = state.store();
+
     // Parse suggested_target as extension or full file name
     let mut suggestion = suggested_target.clone();
     if suggested_target.starts_with('.') {
@@ -281,7 +280,8 @@ async fn handle_put_relative_file_suggested(
         }
     }
 
-    match filesystem
+    match state
+        .file()
         .upload(Bucket::UserFiles, &path, data.into())
         .await
     {
