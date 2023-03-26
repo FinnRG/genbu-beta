@@ -7,7 +7,7 @@ use thiserror::Error;
 use time::{Duration, OffsetDateTime};
 use utoipa::ToSchema;
 
-use crate::stores::{users::User, Uuid};
+use crate::stores::Uuid;
 
 use super::storage::Bucket;
 
@@ -136,21 +136,6 @@ impl DBFile {
         }
     }
 
-    // TODO: Remove this because it always returns size 0
-    #[deprecated]
-    pub fn with_path_and_user(path: impl Into<String>, user_id: Uuid) -> Self {
-        let now = OffsetDateTime::now_utc();
-        DBFile {
-            id: LeaseID(Uuid::new_v4()),
-            path: path.into(),
-            size: 0,
-            lock: None,
-            lock_expires_at: None,
-            created_by: user_id,
-            created_at: now,
-        }
-    }
-
     pub fn parent_folder(&self) -> String {
         let parts = self.path.split_terminator('\\').rev().collect::<Vec<_>>();
         parts.iter().skip(1).rev().join("\\")
@@ -255,18 +240,18 @@ mod tests {
     use super::*;
 
     fn create_dbfile() -> DBFile {
-        DBFile::with_path_and_user("\\test", Uuid::nil())
+        DBFile::new("\\test", Uuid::nil(), 0)
     }
 
     #[test]
     fn parent_folder() {
-        let dbf = DBFile::with_path_and_user("folder\\test.txt", Uuid::nil());
+        let dbf = DBFile::new("folder\\test.txt", Uuid::nil(), 0);
         assert_eq!(dbf.parent_folder(), "folder");
     }
 
     #[test]
     fn parent_folder_of_folder() {
-        let dbf = DBFile::with_path_and_user("folder1\\folder2\\", Uuid::nil());
+        let dbf = DBFile::new("folder1\\folder2\\", Uuid::nil(), 0);
         assert_eq!(dbf.parent_folder(), "folder1");
     }
 
