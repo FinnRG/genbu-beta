@@ -2,10 +2,11 @@ use bytes::Bytes;
 use http::StatusCode;
 use tracing::{debug, error, trace};
 use wopi_rs::{
-    content::{FileContentRequest, FileContentRequestType},
+    content::{FileContentRequest, FileContentRequestType, PutFileRequest, PutFileResponse},
     file::{
-        CheckFileInfoRequest, CheckFileInfoResponse, FileRequest, FileRequestType, LockRequest,
-        LockResponse, PutRelativeFileRequest, PutRelativeFileResponse, PutRelativeFileResponseBody,
+        CheckFileInfoRequest, CheckFileInfoResponse, FileRequest, FileRequestType, GetLockResponse,
+        LockRequest, LockResponse, PutRelativeFileRequest, PutRelativeFileResponse,
+        PutRelativeFileResponseBody, UnlockResponse,
     },
     FileBody, WopiResponse,
 };
@@ -14,7 +15,7 @@ use crate::{
     server::routes::AppState,
     stores::{
         files::{
-            database::{DBFile, DBFileError, DBFileStore, LeaseID},
+            database::{DBFile, DBFileError, DBFileStore, FileLock, LeaseID},
             storage::Bucket,
             FileStorage,
         },
@@ -36,9 +37,11 @@ pub async fn wopi_file(
             .await
             .into(),
         FileRequestType::Lock(r) => handle_lock(state.store(), user_id, id, r).await.into(),
+        FileRequestType::GetLock(_) => handle_get_lock(state, id.0).await.into(),
         FileRequestType::PutRelativeFile(r) => {
             handle_put_relative(state, user_id, id, r).await.into()
         }
+        FileRequestType::Unlock(r) => handle_unlock(state, id.0, r.lock.into()).await.into(),
     }
 }
 
@@ -52,7 +55,9 @@ pub async fn wopi_file_content(
     };
     match req.request {
         FileContentRequestType::GetFile(_) => handle_get_file(state, file_id).await,
-        FileContentRequestType::PutFile(_) => todo!(),
+        FileContentRequestType::PutFile(FileBody { body, request }) => {
+            handle_put_file(state, file_id, request, body).await.into()
+        }
     }
 }
 
@@ -79,6 +84,11 @@ async fn handle_check_file_info(
         owner_id: user_id.to_string(), // TODO: Update this if sharing is enabled
         user_id: user_id.to_string(),
         size: db_file.size,
+        read_only: false,
+        user_can_write: true,
+        supports_locks: true,
+        supports_get_lock: true,
+        supports_extended_lock_length: true,
         ..CheckFileInfoResponse::default()
     };
     WopiResponse::Ok(resp)
@@ -90,6 +100,7 @@ async fn handle_lock(
     id: LeaseID,
     req: LockRequest,
 ) -> Response<LockResponse> {
+    trace!("lock attempt with {}", req.lock);
     match file_db.lock(id.0, req.lock.into()).await {
         Ok(Some(_)) => Response::Ok(LockResponse::Ok { item_version: None }),
         Ok(None) => Response::NotFound,
@@ -332,4 +343,84 @@ async fn handle_get_file(state: impl AppState, file_id: Uuid) -> http::Response<
         .header("Location", url)
         .body(Bytes::new())
         .unwrap()
+}
+
+async fn handle_put_file(
+    state: impl AppState,
+    file_id: Uuid,
+    PutFileRequest { lock, editors }: PutFileRequest,
+    body: Bytes,
+) -> Response<PutFileResponse> {
+    let dbfile = match state.store().get_dbfile(file_id).await {
+        Ok(Some(f)) => f,
+        Ok(None) => return Response::NotFound,
+        Err(e) => {
+            error!("error {e:?} while retrieving dbfile {file_id} from store");
+            return Response::InternalServerError;
+        }
+    };
+    if let Some(lock) = lock {
+        if !dbfile.validate_lock(&lock.into()) {
+            return Response::Ok(PutFileResponse::Conflict {
+                lock: dbfile.lock.unwrap().take(),
+                lock_failure_reason: None,
+            });
+        }
+    } else if dbfile.size > 0 {
+        error!("PutFile conflict: No lock specified and file size > 0");
+        // THe WOPi spec is unclear here.
+        // You have to respond with X-WOPI-Lock if you use the StatusCode 409,
+        // but the file isn't necessarily locked if it is larger than 0 bytes.
+        return Response::Ok(PutFileResponse::Conflict {
+            lock: String::new(),
+            lock_failure_reason: None,
+        });
+    };
+
+    match state
+        .file()
+        .upload(Bucket::UserFiles, &dbfile.path, body.to_vec())
+        .await
+    {
+        Ok(_) => {
+            // TODO: Add the item version here
+            Response::Ok(PutFileResponse::Ok { item_version: None })
+        }
+        Err(e) => {
+            error!("error {e:?} while uploading file {file_id}");
+            Response::InternalServerError
+        }
+    }
+}
+
+async fn handle_get_lock(state: impl AppState, file_id: Uuid) -> Response<GetLockResponse> {
+    let dbfile = match state.store().get_dbfile(file_id).await {
+        Ok(Some(f)) => f,
+        Ok(None) => return Response::NotFound,
+        Err(e) => {
+            error!("error {e:?} while retrieving dbfile {file_id}");
+            return Response::InternalServerError;
+        }
+    };
+    let lock = if dbfile.is_locked() {
+        dbfile.lock.unwrap().take()
+    } else {
+        String::new()
+    };
+    Response::Ok(GetLockResponse::Ok { lock })
+}
+
+async fn handle_unlock(
+    state: impl AppState,
+    file_id: Uuid,
+    lock: FileLock,
+) -> Response<UnlockResponse> {
+    match state.store().unlock(file_id, lock).await {
+        Ok(Some(_)) => Response::Ok(UnlockResponse::Ok { item_version: None }),
+        Ok(None) => Response::NotFound,
+        Err(e) => {
+            error!("error {e:?} while unlocking {file_id}");
+            Response::InternalServerError
+        }
+    }
 }

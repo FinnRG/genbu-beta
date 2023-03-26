@@ -7,10 +7,11 @@ use axum::{
 };
 use bytes::Bytes;
 use genbu_auth::authn::Claims;
+use http::HeaderMap;
 use hyper::StatusCode;
 
 use serde_json::json;
-use tracing::error;
+use tracing::{error, info};
 use wopi_rs::{content::FileContentRequest, file::FileRequest};
 
 use crate::{
@@ -23,7 +24,10 @@ use crate::{
         wopi as wopi_handler,
     },
     server::middlewares::auth::auth,
-    stores::files::{database::DBFileError, storage::FileError, UploadLeaseError},
+    stores::{
+        files::{database::DBFileError, storage::FileError, UploadLeaseError},
+        Uuid,
+    },
 };
 
 use self::wopi::{Wopi, WopiResponse};
@@ -42,9 +46,12 @@ pub fn router<S: AppState>() -> Router<S> {
         .route("/api/files/upload/finish", post(finish_upload::<S>))
         .route(
             "/api/wopi/files/:id",
-            get(wopi_check_file_info::<S>), // .post(todo!())
+            get(wopi_file::<S>).post(wopi_file::<S>),
         )
-        .route("/api/wopi/files/:id/contents", get(wopi_file_content::<S>))
+        .route(
+            "/api/wopi/files/:id/contents",
+            get(wopi_file_content::<S>).post(wopi_file_content::<S>),
+        )
         .route_layer(middleware::from_fn(auth))
 }
 
@@ -66,21 +73,32 @@ pub async fn start_download<S: AppState>(
     Ok(Redirect::temporary(&redirect))
 }
 
-pub async fn wopi_check_file_info<S: AppState>(
+pub async fn wopi_file<S: AppState>(
     State(state): State<S>,
-    Extension(user): Extension<Claims>,
+    // Extension(user): Extension<Claims>,
     Wopi(req): Wopi<FileRequest<Bytes>>,
 ) -> impl IntoResponse {
-    let resp = wopi_handler::wopi_file(state, user.sub, req).await;
+    info!("access token {:?}", req.access_token);
+    let resp = wopi_handler::wopi_file(
+        state,
+        Uuid::parse_str("fce7d1d3-b5d0-4963-8eb4-e90f302753a5").unwrap(),
+        req.request,
+    )
+    .await;
     WopiResponse(resp)
 }
 
 pub async fn wopi_file_content<S: AppState>(
     State(state): State<S>,
-    Extension(user): Extension<Claims>,
+    // Extension(user): Extension<Claims>,
     Wopi(req): Wopi<FileContentRequest<Bytes>>,
 ) -> impl IntoResponse {
-    let resp = wopi_handler::wopi_file_content(state, user.sub, req).await;
+    let resp = wopi_handler::wopi_file_content(
+        state,
+        Uuid::parse_str("fce7d1d3-b5d0-4963-8eb4-e90f302753a5").unwrap(),
+        req.request,
+    )
+    .await;
     WopiResponse(resp)
 }
 

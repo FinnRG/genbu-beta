@@ -3,8 +3,9 @@ use bytes::Bytes;
 use http::Request;
 use hyper::body::to_bytes;
 use tracing::error;
+use wopi_rs::WopiRequest;
 
-pub struct Wopi<T: TryFrom<http::Request<Bytes>>>(pub T);
+pub struct Wopi<T: TryFrom<http::Request<Bytes>>>(pub WopiRequest<T>);
 pub struct WopiResponse(pub http::Response<Bytes>);
 
 #[async_trait::async_trait]
@@ -20,7 +21,7 @@ impl<T: TryFrom<http::Request<Bytes>>, S: Send + Sync> FromRequest<S, Body> for 
         })?;
         let req = Request::from_parts(parts, b);
         Ok(Wopi(
-            T::try_from(req).map_err(|_| http::StatusCode::BAD_REQUEST)?,
+            WopiRequest::try_from(req).map_err(|_| http::StatusCode::BAD_REQUEST)?,
         ))
     }
 }

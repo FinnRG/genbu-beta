@@ -83,7 +83,7 @@ pub trait UploadLeaseStore {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DBFile {
-    pub id: LeaseID,
+    pub id: LeaseID, //TODO: This should be it's own FileID type
     pub size: i64,
     pub path: String,
     pub lock: Option<FileLock>,
@@ -101,6 +101,14 @@ impl FileLock {
     #[must_use]
     pub fn new() -> Self {
         FileLock(Uuid::new_v4().to_string())
+    }
+
+    pub fn value(&self) -> &str {
+        &self.0
+    }
+
+    pub fn take(self) -> String {
+        self.0
     }
 }
 
@@ -159,7 +167,7 @@ impl DBFile {
                 .is_some_and(|x| x > OffsetDateTime::now_utc())
     }
 
-    fn validate_lock(&self, lock: &FileLock) -> bool {
+    pub fn validate_lock(&self, lock: &FileLock) -> bool {
         if self.is_locked() {
             return self.lock.as_ref().unwrap() == lock;
         }
