@@ -3,15 +3,15 @@ use bytes::Bytes;
 use http::Request;
 use hyper::body::to_bytes;
 use tracing::error;
-use wopi_rs::file::FileRequest;
 
-pub struct Wopi<T>(pub FileRequest<T>);
+pub struct Wopi<T: TryFrom<http::Request<Bytes>>>(pub T);
 pub struct WopiResponse(pub http::Response<Bytes>);
 
 #[async_trait::async_trait]
-impl<S: Send + Sync> FromRequest<S, Body> for Wopi<Bytes> {
+impl<T: TryFrom<http::Request<Bytes>>, S: Send + Sync> FromRequest<S, Body> for Wopi<T> {
     type Rejection = http::StatusCode;
 
+    // TODO: Check Content-Length for malicious input (see to_bytes docs for example)
     async fn from_request(req: Request<Body>, _: &S) -> Result<Self, Self::Rejection> {
         let (parts, b) = req.into_parts();
         let b = to_bytes(b).await.map_err(|e| {
@@ -20,7 +20,7 @@ impl<S: Send + Sync> FromRequest<S, Body> for Wopi<Bytes> {
         })?;
         let req = Request::from_parts(parts, b);
         Ok(Wopi(
-            FileRequest::try_from(req).map_err(|_| http::StatusCode::BAD_REQUEST)?,
+            T::try_from(req).map_err(|_| http::StatusCode::BAD_REQUEST)?,
         ))
     }
 }

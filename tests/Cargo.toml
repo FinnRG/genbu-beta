@@ -22,3 +22,6 @@ path = "user.rs"
 [[test]]
 name = "upload_tests"
 path = "upload.rs"
+
+[dependencies]
+dotenvy = "0.15.7"

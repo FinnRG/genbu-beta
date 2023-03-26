@@ -125,13 +125,14 @@ impl DBFileStore for PgStore {
         let res = sqlx::query_as!(
             DBFile,
             r#"
-                insert into file (id, path, created_by)
-                values ($1, $2, $3)
-                returning id as "id: LeaseID",path,lock as "lock: FileLock",lock_expires_at,created_by,created_at
+                insert into file (id, path, created_by, size)
+                values ($1, $2, $3, $4)
+                returning id as "id: LeaseID",path,lock as "lock: FileLock",lock_expires_at,created_by,created_at,size
             "#,
             file.id as _,
             file.path,
-            file.created_by
+            file.created_by,
+            file.size
         )
         .fetch_one(&self.conn)
         .await?;
@@ -212,6 +213,7 @@ impl DBFileStore for PgStore {
             return Ok(None);
         };
         if file.is_locked() {
+            // TODO: Push extended lock into store
             file.extend_lock(&lock)
                 .map_err(|l| DBFileError::Locked(Some(l.clone())))?;
             return Ok(Some(()));
@@ -238,7 +240,7 @@ impl DBFileStore for PgStore {
 
     async fn get_dbfile(&self, file_id: Uuid) -> FileResult<Option<DBFile>> {
         let res = sqlx::query_as!(DBFile, r#"
-                select id as "id: LeaseID",path,lock as "lock: FileLock",lock_expires_at,created_by,created_at
+                select id as "id: LeaseID",path,lock as "lock: FileLock",lock_expires_at,created_by,created_at,size
                 from file
                 where id = $1
             "#, file_id).fetch_optional(&self.conn).await?;
@@ -247,7 +249,7 @@ impl DBFileStore for PgStore {
 
     async fn get_dbfile_by_path(&self, path: &str) -> FileResult<Option<DBFile>> {
         let res = sqlx::query_as!(DBFile, r#"
-                select id as "id: LeaseID",path,lock as "lock: FileLock",lock_expires_at,created_by,created_at
+                select id as "id: LeaseID",path,lock as "lock: FileLock",lock_expires_at,created_by,created_at,size
                 from file
                 where path = $1
             "#, path).fetch_optional(&self.conn).await?;

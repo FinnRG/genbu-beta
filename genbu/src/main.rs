@@ -60,7 +60,7 @@ async fn main() -> Result<(), impl Debug> {
     info!("Connecting to S3");
     s3_store.setup().await.expect("unable to setup S3");
 
-    let state = ServerAppState::new(pg_store, s3_store, "http://localhost:8080/".to_owned());
+    let state = ServerAppState::new(pg_store, s3_store, "http://localhost:8080".to_owned());
 
     info!("Starting server");
     GenbuServer::new(state).start().await

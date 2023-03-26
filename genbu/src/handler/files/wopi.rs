@@ -1,6 +1,8 @@
 use bytes::Bytes;
+use http::StatusCode;
 use tracing::{debug, error, trace};
 use wopi_rs::{
+    content::{FileContentRequest, FileContentRequestType},
     file::{
         CheckFileInfoRequest, CheckFileInfoResponse, FileRequest, FileRequestType, LockRequest,
         LockResponse, PutRelativeFileRequest, PutRelativeFileResponse, PutRelativeFileResponseBody,
@@ -13,18 +15,16 @@ use crate::{
     stores::{
         files::{
             database::{DBFile, DBFileError, DBFileStore, LeaseID},
-            filesystem::Filesystem,
             storage::Bucket,
-            FileStorage, UploadLeaseStore,
+            FileStorage,
         },
-        users::User,
         DataStore, Uuid,
     },
 };
 
 pub async fn wopi_file(
     state: impl AppState,
-    user: &User,
+    user_id: Uuid,
     file_req: FileRequest<Bytes>,
 ) -> http::Response<Bytes> {
     let Ok(id) = Uuid::parse_str(&file_req.file_id) else {
@@ -32,12 +32,27 @@ pub async fn wopi_file(
     };
     let id = LeaseID(id);
     match file_req.request {
-        FileRequestType::CheckFileInfo(r) => handle_check_file_info(state.store(), user, id, r)
+        FileRequestType::CheckFileInfo(r) => handle_check_file_info(state.store(), user_id, id, r)
             .await
             .into(),
-        FileRequestType::Lock(r) => handle_lock(state.store(), user, id, r).await.into(),
-        FileRequestType::PutRelativeFile(r) => handle_put_relative(state, user, id, r).await.into(),
-        _ => todo!(),
+        FileRequestType::Lock(r) => handle_lock(state.store(), user_id, id, r).await.into(),
+        FileRequestType::PutRelativeFile(r) => {
+            handle_put_relative(state, user_id, id, r).await.into()
+        }
+    }
+}
+
+pub async fn wopi_file_content(
+    state: impl AppState,
+    user_id: Uuid,
+    req: FileContentRequest<Bytes>,
+) -> http::Response<Bytes> {
+    let Ok(file_id) = Uuid::parse_str(&req.file_id) else {
+        return WopiResponse::<LockResponse>::NotFound.into();
+    };
+    match req.request {
+        FileContentRequestType::GetFile(_) => handle_get_file(state, file_id).await,
+        FileContentRequestType::PutFile(_) => todo!(),
     }
 }
 
@@ -46,14 +61,10 @@ type Response<T> = WopiResponse<T>;
 #[tracing::instrument(skip(file_db))]
 async fn handle_check_file_info(
     file_db: impl DataStore,
-    user: &User,
+    user_id: Uuid,
     id: LeaseID,
     req: CheckFileInfoRequest,
 ) -> Response<CheckFileInfoResponse> {
-    // For some reason this does't work.
-    // TODO: Create reproducible example and ask on the axum repo
-    // let (db_file, upload_lease) =
-    //     futures::join!(file_db.get_dbfile(id.0), file_db.get_upload_lease(&id));
     let db_file = match file_db.get_dbfile(id.0).await {
         Ok(Some(f)) => f,
         Ok(None) => return WopiResponse::NotFound,
@@ -62,30 +73,12 @@ async fn handle_check_file_info(
             return WopiResponse::InternalServerError;
         }
     };
-    let upload_lease = match file_db.get_upload_lease(&id).await {
-        Ok(Some(f)) => f,
-        Ok(None) => return WopiResponse::NotFound,
-        Err(e) => {
-            error!("error connecting to db: {:?}", e);
-            return WopiResponse::InternalServerError;
-        }
-    };
-    let name = match db_file.path.split('/').last() {
-        None | Some("") => return WopiResponse::NotFound,
-        Some(a) => {
-            if let Some(n) = a.rfind('.') {
-                a.split_at(n).1
-            } else {
-                a
-            }
-        }
-    };
     // TODO: Add version
     let resp = CheckFileInfoResponse {
-        base_file_name: name.to_owned(),
-        owner_id: user.id.to_string(), // TODO: Update this if sharing is enabled
-        user_id: user.id.to_string(),
-        size: upload_lease.size,
+        base_file_name: db_file.name(),
+        owner_id: user_id.to_string(), // TODO: Update this if sharing is enabled
+        user_id: user_id.to_string(),
+        size: db_file.size,
         ..CheckFileInfoResponse::default()
     };
     WopiResponse::Ok(resp)
@@ -93,7 +86,7 @@ async fn handle_check_file_info(
 
 async fn handle_lock(
     file_db: impl DataStore,
-    user: &User,
+    user_id: Uuid,
     id: LeaseID,
     req: LockRequest,
 ) -> Response<LockResponse> {
@@ -113,7 +106,7 @@ async fn handle_lock(
 
 async fn handle_put_relative(
     state: impl AppState,
-    user: &User,
+    user_id: Uuid,
     lease_id: LeaseID,
     req: FileBody<Bytes, PutRelativeFileRequest>,
 ) -> Response<PutRelativeFileResponse> {
@@ -138,7 +131,7 @@ async fn handle_put_relative(
             debug!("Processing PutRelativeFile in Specific mode");
             handle_put_relative_specific(
                 state,
-                user,
+                user_id,
                 dbfile,
                 data,
                 relative_target,
@@ -156,7 +149,7 @@ async fn handle_put_relative(
             debug!("Processing PutRelativeFile in Suggested mode");
             handle_put_relative_file_suggested(
                 state,
-                user,
+                user_id,
                 dbfile,
                 data,
                 suggested_target,
@@ -171,12 +164,12 @@ async fn handle_put_relative(
 // TODO: Binary file conversion?
 async fn handle_put_relative_specific(
     state: impl AppState,
-    user: &User,
+    user_id: Uuid,
     dbfile: DBFile,
     data: Bytes,
     relative_target: String,
     overwrite_relative_target: bool,
-    _size: u64,
+    size: i64,
     _file_conversion: bool,
 ) -> Response<PutRelativeFileResponse> {
     let file_db = state.store();
@@ -209,7 +202,7 @@ async fn handle_put_relative_specific(
     }
 
     // Add a new DBFile to the database
-    let dbfile = DBFile::with_path_and_user(&path, user);
+    let dbfile = DBFile::new(&path, user_id, size);
     match file_db.add_dbfile(&dbfile).await {
         Ok(_) => {}
         Err(e) => {
@@ -239,11 +232,11 @@ async fn handle_put_relative_specific(
 
 async fn handle_put_relative_file_suggested(
     state: impl AppState,
-    user: &User,
+    user_id: Uuid,
     dbfile: DBFile,
     data: Bytes,
     suggested_target: String,
-    size: u64,
+    size: i64,
     _file_conversion: bool,
 ) -> Response<PutRelativeFileResponse> {
     let file_db = state.store();
@@ -272,7 +265,7 @@ async fn handle_put_relative_file_suggested(
         suggestion = counter.to_string() + &suggestion;
     }
 
-    let new_file = DBFile::with_path_and_user(&path, user);
+    let new_file = DBFile::new(&path, user_id, size);
 
     match file_db.add_dbfile(&new_file).await {
         Ok(_) => {}
@@ -301,4 +294,42 @@ async fn handle_put_relative_file_suggested(
         host_view_url: todo!(),
         host_edit_url: todo!(),
     }))
+}
+
+fn new_response(code: StatusCode) -> http::Response<Bytes> {
+    http::Response::builder()
+        .status(code)
+        .body(Bytes::new())
+        .unwrap()
+}
+
+async fn handle_get_file(state: impl AppState, file_id: Uuid) -> http::Response<Bytes> {
+    let dbfile = match state.store().get_dbfile(file_id).await {
+        Ok(Some(f)) => f,
+        Ok(None) => {
+            debug!("no dbfile with id {file_id} found");
+            return new_response(StatusCode::NOT_FOUND);
+        }
+        Err(e) => {
+            error!("error {e:?} while retrieving dbfile with file_id {file_id}");
+            return new_response(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+    let url = match state
+        .file()
+        .get_download_url(Bucket::UserFiles, &dbfile.path)
+        .await
+    {
+        Ok(s) => s,
+        Err(e) => {
+            error!("error {e:?} while generating download url");
+            return new_response(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    http::Response::builder()
+        .status(StatusCode::TEMPORARY_REDIRECT)
+        .header("Location", url)
+        .body(Bytes::new())
+        .unwrap()
 }

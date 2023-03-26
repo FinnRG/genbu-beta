@@ -8,7 +8,7 @@ use axum::{
 use genbu_server::{
     connectors::{postgres::PgStore, s3},
     server::{builder::GenbuServer, routes::ServerAppState},
-    stores::{DataStore, Reset, Setup, Uuid},
+    stores::{DataStore, Setup, Uuid},
 };
 use http_body::combinators::UnsyncBoxBody;
 use serde_json::json;
@@ -100,6 +100,8 @@ impl TestClient {
 }
 
 pub async fn build_app() -> Router {
+    dotenvy::dotenv().expect("Unable to start dotenvy");
+
     let mut pg_store = PgStore::new(build_connection_string(&Uuid::new_v4().to_string()))
         // TODO:
         // Make
@@ -113,7 +115,7 @@ pub async fn build_app() -> Router {
         .setup()
         .await
         .expect("Unable to setup file_store");
-    let state = ServerAppState::new(pg_store, file_store, "http://localhost:8080/".to_owned());
+    let state = ServerAppState::new(pg_store, file_store, "http://localhost:8080".to_owned());
     GenbuServer::new(state).app()
 }
 

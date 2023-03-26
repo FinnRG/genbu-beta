@@ -84,6 +84,7 @@ pub trait UploadLeaseStore {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DBFile {
     pub id: LeaseID,
+    pub size: i64,
     pub path: String,
     pub lock: Option<FileLock>,
     pub lock_expires_at: Option<OffsetDateTime>,
@@ -122,14 +123,30 @@ impl<T: Into<String>> From<T> for FileLock {
 }
 
 impl DBFile {
-    pub fn with_path_and_user(path: impl Into<String>, user: &User) -> Self {
+    pub fn new(path: impl Into<String>, user_id: Uuid, size: i64) -> Self {
         let now = OffsetDateTime::now_utc();
         DBFile {
             id: LeaseID(Uuid::new_v4()),
             path: path.into(),
+            size,
             lock: None,
             lock_expires_at: None,
-            created_by: user.id,
+            created_by: user_id,
+            created_at: now,
+        }
+    }
+
+    // TODO: Remove this because it always returns size 0
+    #[deprecated]
+    pub fn with_path_and_user(path: impl Into<String>, user_id: Uuid) -> Self {
+        let now = OffsetDateTime::now_utc();
+        DBFile {
+            id: LeaseID(Uuid::new_v4()),
+            path: path.into(),
+            size: 0,
+            lock: None,
+            lock_expires_at: None,
+            created_by: user_id,
             created_at: now,
         }
     }
@@ -139,6 +156,7 @@ impl DBFile {
         parts.iter().skip(1).rev().join("\\")
     }
 
+    /// Returns the name of the file including the extension.
     pub fn name(&self) -> String {
         self.path
             .split('\\')
@@ -237,18 +255,18 @@ mod tests {
     use super::*;
 
     fn create_dbfile() -> DBFile {
-        DBFile::with_path_and_user("\\test", &User::template())
+        DBFile::with_path_and_user("\\test", Uuid::nil())
     }
 
     #[test]
     fn parent_folder() {
-        let dbf = DBFile::with_path_and_user("folder\\test.txt", &User::template());
+        let dbf = DBFile::with_path_and_user("folder\\test.txt", Uuid::nil());
         assert_eq!(dbf.parent_folder(), "folder");
     }
 
     #[test]
     fn parent_folder_of_folder() {
-        let dbf = DBFile::with_path_and_user("folder1\\folder2\\", &User::template());
+        let dbf = DBFile::with_path_and_user("folder1\\folder2\\", Uuid::nil());
         assert_eq!(dbf.parent_folder(), "folder1");
     }
 

@@ -4,13 +4,16 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use utoipa::ToSchema;
 
-use crate::stores::{
-    files::{
-        database::LeaseID,
-        storage::{FileError, Part},
-        FileStorage, UploadLease, UploadLeaseError, UploadLeaseStore,
+use crate::{
+    server::routes::AppState,
+    stores::{
+        files::{
+            database::{DBFile, DBFileError, DBFileStore, LeaseID},
+            storage::{FileError, Part},
+            FileStorage, UploadLease, UploadLeaseError, UploadLeaseStore,
+        },
+        Uuid,
     },
-    Uuid,
 };
 
 pub type UploadAPIResult<T> = std::result::Result<T, UploadAPIError>;
@@ -25,7 +28,10 @@ pub enum UploadAPIError {
     StorageError(#[from] FileError),
 
     #[error("lease store error")]
-    DatabaseError(#[from] UploadLeaseError),
+    UploadLeaseError(#[from] UploadLeaseError),
+
+    #[error("dbfile store error")]
+    DBFileError(#[from] DBFileError),
 
     #[error("file too large, {0} exceeds {1}")]
     FileTooLarge(u64, u64),
@@ -138,18 +144,19 @@ pub struct FinishUploadRequest {
     parts: Vec<Part>,
 }
 
-#[tracing::instrument(skip(file_storage, lease_store), err(Debug))]
+#[tracing::instrument(skip(state), err(Debug))]
 pub async fn finish_upload(
-    file_storage: impl FileStorage,
-    mut lease_store: impl UploadLeaseStore,
+    state: impl AppState,
+    user_id: Uuid,
     finish_req: FinishUploadRequest,
 ) -> Result<()> {
     let lease_id = finish_req.lease_id;
-    let Some(lease) = lease_store.mark_completed(&lease_id).await? else {
+    let Some(lease) = state.store().mark_completed(&lease_id).await? else {
         return Err(UploadAPIError::NotFound(Box::new(lease_id)))
     };
 
-    file_storage
+    state
+        .file()
         .finish_multipart_upload(
             lease.bucket,
             &lease.name,
@@ -157,5 +164,9 @@ pub async fn finish_upload(
             finish_req.parts,
         )
         .await?;
+
+    let dbfile = DBFile::new(lease.name, user_id, lease.size);
+    state.store().add_dbfile(&dbfile).await?;
+
     Ok(())
 }

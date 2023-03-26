@@ -11,6 +11,7 @@ use hyper::StatusCode;
 
 use serde_json::json;
 use tracing::error;
+use wopi_rs::{content::FileContentRequest, file::FileRequest};
 
 use crate::{
     handler::files::upload as handler,
@@ -22,10 +23,7 @@ use crate::{
         wopi as wopi_handler,
     },
     server::middlewares::auth::auth,
-    stores::{
-        files::{storage::FileError, UploadLeaseError},
-        users::User,
-    },
+    stores::files::{database::DBFileError, storage::FileError, UploadLeaseError},
 };
 
 use self::wopi::{Wopi, WopiResponse};
@@ -46,6 +44,7 @@ pub fn router<S: AppState>() -> Router<S> {
             "/api/wopi/files/:id",
             get(wopi_check_file_info::<S>), // .post(todo!())
         )
+        .route("/api/wopi/files/:id/contents", get(wopi_file_content::<S>))
         .route_layer(middleware::from_fn(auth))
 }
 
@@ -69,10 +68,19 @@ pub async fn start_download<S: AppState>(
 
 pub async fn wopi_check_file_info<S: AppState>(
     State(state): State<S>,
-    Wopi(req): Wopi<Bytes>,
+    Extension(user): Extension<Claims>,
+    Wopi(req): Wopi<FileRequest<Bytes>>,
 ) -> impl IntoResponse {
-    let user = User::template();
-    let resp = wopi_handler::wopi_file(state, &user, req).await;
+    let resp = wopi_handler::wopi_file(state, user.sub, req).await;
+    WopiResponse(resp)
+}
+
+pub async fn wopi_file_content<S: AppState>(
+    State(state): State<S>,
+    Extension(user): Extension<Claims>,
+    Wopi(req): Wopi<FileContentRequest<Bytes>>,
+) -> impl IntoResponse {
+    let resp = wopi_handler::wopi_file_content(state, user.sub, req).await;
     WopiResponse(resp)
 }
 
@@ -109,9 +117,10 @@ pub async fn upload_file_request<S: AppState>(
 )]
 pub async fn finish_upload<S: AppState>(
     State(state): State<S>,
+    Extension(user): Extension<Claims>,
     Json(req): Json<handler::FinishUploadRequest>,
 ) -> handler::UploadAPIResult<()> {
-    handler::finish_upload(state.file(), state.store(), req).await
+    handler::finish_upload(state, user.sub, req).await
 }
 
 impl IntoResponse for FileError {
@@ -147,11 +156,27 @@ impl IntoResponse for UploadLeaseError {
     }
 }
 
+impl IntoResponse for DBFileError {
+    fn into_response(self) -> axum::response::Response {
+        let resp = match self {
+            DBFileError::Connection(_) => (
+                StatusCode::BAD_GATEWAY,
+                "Server failed to establish connection to database",
+            ),
+            DBFileError::Locked(_) => (StatusCode::CONFLICT, "File is already locked"),
+            DBFileError::Other(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Unknown internal error"),
+        };
+
+        resp.into_response()
+    }
+}
+
 impl IntoResponse for UploadAPIError {
     fn into_response(self) -> axum::response::Response {
         match self {
             Self::StorageError(e) => e.into_response(),
-            Self::DatabaseError(e) => e.into_response(),
+            Self::UploadLeaseError(e) => e.into_response(),
+            Self::DBFileError(e) => e.into_response(),
             Self::FileTooLarge(size, max_size) => (
                 StatusCode::FORBIDDEN,
                 format!("file size {size} exceeds maximum {max_size}"),

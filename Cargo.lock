@@ -1160,6 +1160,7 @@ name = "genbu-tests"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "dotenvy",
  "futures",
  "genbu-server",
  "http-body",
