@@ -18,7 +18,7 @@ pub enum AccessTokenError {
 pub type TokenResult<T> = std::result::Result<T, AccessTokenError>;
 type Result<T> = TokenResult<T>;
 
-#[derive(sqlx::Type, Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(sqlx::Type, Debug, Copy, Clone, Hash, Eq, PartialEq)]
 #[sqlx(transparent)]
 pub struct AccessToken(Uuid);
 
@@ -28,9 +28,17 @@ impl From<Uuid> for AccessToken {
     }
 }
 
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct AccessTokenContext {
+    pub token: AccessToken,
+    pub file_id: Uuid,
+    pub user_id: Uuid,
+}
+
 #[async_trait::async_trait]
 pub trait AccessTokenStore {
     async fn create_token(&self, user: &User, file: &DBFile, from: IpAddr) -> Result<AccessToken>;
-    async fn revoke_token(&self, token: &AccessToken) -> Result<()>;
+    async fn get_token_context(&self, token: AccessToken) -> Result<Option<AccessTokenContext>>;
+    async fn revoke_token(&self, token: AccessToken) -> Result<()>;
     // TODO: Consider future functions: get_tokens,get_tokens_for_user
 }

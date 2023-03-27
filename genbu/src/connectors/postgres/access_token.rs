@@ -2,7 +2,9 @@ use std::net::IpAddr;
 
 use crate::stores::{
     files::{
-        access_token::{AccessToken, AccessTokenError, AccessTokenStore, TokenResult},
+        access_token::{
+            AccessToken, AccessTokenContext, AccessTokenError, AccessTokenStore, TokenResult,
+        },
         database::DBFile,
     },
     users::User,
@@ -49,7 +51,7 @@ impl AccessTokenStore for PgStore {
     }
 
     #[tracing::instrument(skip(self))]
-    async fn revoke_token(&self, token: &AccessToken) -> TokenResult<()> {
+    async fn revoke_token(&self, token: AccessToken) -> TokenResult<()> {
         Ok(sqlx::query!(
             r#"
             delete from access_token
@@ -60,5 +62,23 @@ impl AccessTokenStore for PgStore {
         .execute(&self.conn)
         .await
         .map(|_| ())?)
+    }
+
+    #[tracing::instrument(skip(self))]
+    async fn get_token_context(
+        &self,
+        token: AccessToken,
+    ) -> TokenResult<Option<AccessTokenContext>> {
+        Ok(sqlx::query_as!(
+            AccessTokenContext,
+            r#"
+            select token "token: AccessToken",user_id "user_id",file_id
+            from access_token
+            where token = $1
+        "#,
+            token as _
+        )
+        .fetch_optional(&self.conn)
+        .await?)
     }
 }

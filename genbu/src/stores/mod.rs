@@ -14,6 +14,7 @@ pub trait DataStore:
     users::UserStore
     + files::UploadLeaseStore
     + files::database::DBFileStore
+    + files::access_token::AccessTokenStore
     + Reset
     + Setup
     + Sized

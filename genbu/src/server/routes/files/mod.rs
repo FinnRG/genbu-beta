@@ -30,7 +30,7 @@ use crate::{
     },
 };
 
-use self::wopi::{Wopi, WopiResponse};
+use self::wopi::{Wopi, WopiAuth, WopiResponse};
 
 use super::AppState;
 
@@ -75,30 +75,20 @@ pub async fn start_download<S: AppState>(
 
 pub async fn wopi_file<S: AppState>(
     State(state): State<S>,
-    // Extension(user): Extension<Claims>,
+    WopiAuth(auth): WopiAuth,
     Wopi(req): Wopi<FileRequest<Bytes>>,
 ) -> impl IntoResponse {
     info!("access token {:?}", req.access_token);
-    let resp = wopi_handler::wopi_file(
-        state,
-        Uuid::parse_str("fce7d1d3-b5d0-4963-8eb4-e90f302753a5").unwrap(),
-        req.request,
-    )
-    .await;
+    let resp = wopi_handler::wopi_file(state, auth.user_id, req.request).await;
     WopiResponse(resp)
 }
 
 pub async fn wopi_file_content<S: AppState>(
     State(state): State<S>,
-    // Extension(user): Extension<Claims>,
+    WopiAuth(auth): WopiAuth,
     Wopi(req): Wopi<FileContentRequest<Bytes>>,
 ) -> impl IntoResponse {
-    let resp = wopi_handler::wopi_file_content(
-        state,
-        Uuid::parse_str("fce7d1d3-b5d0-4963-8eb4-e90f302753a5").unwrap(),
-        req.request,
-    )
-    .await;
+    let resp = wopi_handler::wopi_file_content(state, auth.user_id, req.request).await;
     WopiResponse(resp)
 }
 

@@ -1,11 +1,21 @@
 use axum::{
+    extract::{Query, State},
     http::{Request, StatusCode},
     middleware::Next,
     response::Response,
 };
 use axum_extra::extract::CookieJar;
 use genbu_auth::authn::validate_jwt;
-use tracing::{debug, warn, Instrument};
+use serde::Deserialize;
+use tracing::{debug, error, warn, Instrument};
+
+use crate::{
+    server::routes::AppState,
+    stores::{
+        files::access_token::{AccessToken, AccessTokenStore},
+        Uuid,
+    },
+};
 
 #[allow(clippy::future_not_send)]
 #[tracing::instrument(skip_all)]
