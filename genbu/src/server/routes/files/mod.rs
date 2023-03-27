@@ -44,6 +44,7 @@ pub fn router<S: AppState>() -> Router<S> {
         .route("/api/files/upload", post(upload_file_request::<S>)) // TODO: COnsider using put
         // instead of post,
         .route("/api/files/upload/finish", post(finish_upload::<S>))
+        .route_layer(middleware::from_fn(auth))
         .route(
             "/api/wopi/files/:id",
             get(wopi_file::<S>).post(wopi_file::<S>),
@@ -52,7 +53,6 @@ pub fn router<S: AppState>() -> Router<S> {
             "/api/wopi/files/:id/contents",
             get(wopi_file_content::<S>).post(wopi_file_content::<S>),
         )
-        .route_layer(middleware::from_fn(auth))
 }
 
 #[utoipa::path(

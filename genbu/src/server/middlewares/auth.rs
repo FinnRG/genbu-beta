@@ -14,7 +14,6 @@ pub async fn auth<B>(
     mut req: Request<B>,
     next: Next<B>,
 ) -> Result<Response, StatusCode> {
-    return Ok(next.run(req).await);
     let token_cookie = cookie_jar.get("Token").ok_or_else(|| {
         warn!("authn_token_not_provided attempted unauthorized access");
         StatusCode::UNAUTHORIZED
