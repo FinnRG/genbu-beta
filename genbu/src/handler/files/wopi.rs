@@ -6,7 +6,7 @@ use wopi_rs::{
     file::{
         CheckFileInfoRequest, CheckFileInfoResponse, FileRequest, FileRequestType, GetLockResponse,
         LockRequest, LockResponse, PutRelativeFileRequest, PutRelativeFileResponse,
-        PutRelativeFileResponseBody, UnlockResponse,
+        PutRelativeFileResponseBody, UnlockAndRelockResponse, UnlockResponse,
     },
     FileBody, WopiResponse,
 };
@@ -15,7 +15,7 @@ use crate::{
     server::routes::AppState,
     stores::{
         files::{
-            database::{DBFile, DBFileError, DBFileStore, FileLock, LeaseID},
+            database::{DBFile, DBFileError, DBFileStore, FileLock, LeaseID, PartialDBFile},
             storage::Bucket,
             FileStorage,
         },
@@ -42,6 +42,11 @@ pub async fn wopi_file(
             handle_put_relative(state, user_id, id, r).await.into()
         }
         FileRequestType::Unlock(r) => handle_unlock(state, id.0, r.lock.into()).await.into(),
+        FileRequestType::UnlockAndRelock(r) => {
+            handle_unlock_and_relock(state, id.0, r.old_lock.into(), r.lock.into())
+                .await
+                .into()
+        }
     }
 }
 
@@ -89,6 +94,8 @@ async fn handle_check_file_info(
         supports_locks: true,
         supports_get_lock: true,
         supports_extended_lock_length: true,
+        supports_update: true, // TODO: Check group permissions in the future
+        user_can_not_write_relative: false,
         ..CheckFileInfoResponse::default()
     };
     WopiResponse::Ok(resp)
@@ -105,7 +112,7 @@ async fn handle_lock(
         Ok(Some(_)) => Response::Ok(LockResponse::Ok { item_version: None }),
         Ok(None) => Response::NotFound,
         Err(DBFileError::Locked(l)) => Response::Ok(LockResponse::Conflict {
-            lock: l.unwrap_or_default().to_string(),
+            lock: l.to_string(),
             lock_failure_reason: None,
         }),
         Err(e) => {
@@ -326,23 +333,16 @@ async fn handle_get_file(state: impl AppState, file_id: Uuid) -> http::Response<
             return new_response(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
-    let url = match state
-        .file()
-        .get_download_url(Bucket::UserFiles, &dbfile.path)
-        .await
-    {
-        Ok(s) => s,
+
+    let data = match state.file().download(Bucket::UserFiles, &dbfile.path).await {
+        Ok(d) => d,
         Err(e) => {
-            error!("error {e:?} while generating download url");
+            error!("{e:?}");
             return new_response(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
 
-    http::Response::builder()
-        .status(StatusCode::TEMPORARY_REDIRECT)
-        .header("Location", url)
-        .body(Bytes::new())
-        .unwrap()
+    http::Response::builder().body(Bytes::from(data)).unwrap()
 }
 
 async fn handle_put_file(
@@ -359,6 +359,8 @@ async fn handle_put_file(
             return Response::InternalServerError;
         }
     };
+
+    // Check for active locks or unlocked files with more than 0 bytes
     if let Some(lock) = lock {
         if !dbfile.validate_lock(&lock.into()) {
             return Response::Ok(PutFileResponse::Conflict {
@@ -376,6 +378,33 @@ async fn handle_put_file(
             lock_failure_reason: None,
         });
     };
+
+    // TODO: This implicitly imposes an upper limit on the max file size at i64::MAX
+    let Ok(new_size) = body.len().try_into() else {
+        return Response::Ok(PutFileResponse::TooLarge);
+    };
+
+    // Update file size in database if necessary
+    // TODO: Do this in parallen with uploading
+    if dbfile.size != new_size {
+        match state
+            .store()
+            .update_dbfile(
+                file_id,
+                &PartialDBFile {
+                    size: Some(new_size),
+                    ..Default::default()
+                },
+            )
+            .await
+        {
+            Ok(_) => {}
+            Err(e) => {
+                error!("{e:?}");
+                return Response::InternalServerError;
+            }
+        }
+    }
 
     match state
         .file()
@@ -418,8 +447,36 @@ async fn handle_unlock(
     match state.store().unlock(file_id, lock).await {
         Ok(Some(_)) => Response::Ok(UnlockResponse::Ok { item_version: None }),
         Ok(None) => Response::NotFound,
+        Err(DBFileError::Locked(lock)) => Response::Ok(UnlockResponse::Conflict {
+            lock: lock.to_string(),
+            lock_failure_reason: None,
+        }),
         Err(e) => {
             error!("error {e:?} while unlocking {file_id}");
+            Response::InternalServerError
+        }
+    }
+}
+
+async fn handle_unlock_and_relock(
+    state: impl AppState,
+    file_id: Uuid,
+    old_lock: FileLock,
+    new_lock: FileLock,
+) -> Response<UnlockAndRelockResponse> {
+    match state
+        .store()
+        .unlock_and_relock(file_id, old_lock, new_lock)
+        .await
+    {
+        Ok(Some(_)) => Response::Ok(UnlockAndRelockResponse::Ok),
+        Ok(None) => Response::NotFound,
+        Err(DBFileError::Locked(lock)) => Response::Ok(UnlockAndRelockResponse::Conflict {
+            lock: lock.to_string(),
+            lock_failure_reason: None,
+        }),
+        Err(e) => {
+            error!("{e:?}");
             Response::InternalServerError
         }
     }

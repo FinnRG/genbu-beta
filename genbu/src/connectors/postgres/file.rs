@@ -4,7 +4,7 @@ use crate::{
     connectors::postgres::PgStore,
     stores::{
         files::{
-            database::{DBFile, DBFileError, FileLock, FileResult, SResult},
+            database::{DBFile, DBFileError, FileLock, FileResult, PartialDBFile, SResult},
             database::{DBFileStore, LeaseID},
             storage::Bucket,
             UploadLease, UploadLeaseError, UploadLeaseStore,
@@ -148,10 +148,15 @@ impl DBFileStore for PgStore {
             return Ok(None);
         };
 
+        // Unlocking an unlocked file is an error according to the spec
+        if !file.is_locked() {
+            return Err(DBFileError::Locked(FileLock::from("")));
+        }
+
         // Performs the necessary checks
         match file.unlock(&lock) {
             Ok(_) => {}
-            Err(e) => return Err(DBFileError::Locked(Some(e.clone()))),
+            Err(e) => return Err(DBFileError::Locked(e.clone())),
         };
 
         // Set lock and lock_expires_at to null if checks were successful
@@ -184,7 +189,7 @@ impl DBFileStore for PgStore {
         // Performs the necessary checks
         match file.extend_lock(&lock) {
             Ok(_) => {}
-            Err(e) => return Err(DBFileError::Locked(Some(e.clone()))),
+            Err(e) => return Err(DBFileError::Locked(e.clone())),
         };
 
         // Update lock and lock_expires_at if checks were successful
@@ -215,7 +220,7 @@ impl DBFileStore for PgStore {
         if file.is_locked() {
             // TODO: Push extended lock into store
             file.extend_lock(&lock)
-                .map_err(|l| DBFileError::Locked(Some(l.clone())))?;
+                .map_err(|l| DBFileError::Locked(l.clone()))?;
             return Ok(Some(()));
         }
 
@@ -254,5 +259,40 @@ impl DBFileStore for PgStore {
                 where path = $1
             "#, path).fetch_optional(&self.conn).await?;
         Ok(res)
+    }
+
+    async fn update_dbfile(
+        &self,
+        file_id: Uuid,
+        update: &PartialDBFile,
+    ) -> FileResult<Option<DBFile>> {
+        let res = sqlx::query_as!(
+            DBFile,
+            r#"
+                update file
+                set size = coalesce($1, file.size),
+                    path = coalesce($2, file.path)
+                where id = $3
+                returning id as "id: LeaseID",path,lock as "lock: FileLock",lock_expires_at,created_by,created_at,size
+            "#,
+            update.size,
+            update.path,
+            file_id
+        )
+        .fetch_optional(&self.conn)
+        .await?;
+        Ok(res)
+    }
+
+    async fn unlock_and_relock(
+        &self,
+        file_id: Uuid,
+        old_lock: FileLock,
+        new_lock: FileLock,
+    ) -> FileResult<Option<()>> {
+        // TODO: This needs to be atomic
+        self.unlock(file_id, old_lock).await?;
+
+        self.lock(file_id, new_lock).await
     }
 }

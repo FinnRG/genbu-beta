@@ -1,1 +1,1 @@
-docker run -t  -d --net="host" -e "aliasgroup1=http://localhost:8080" -e "aliasgroup2=http://localhost:8080" -e "username=admin" -e "password=strong_password" -e "extra_params=--o:ssl.enable=false" --restart always --name collabora --privileged collabora/code 
+docker run -t  -d --net="host" -e "aliasgroup1=http://localhost:8080" -e "aliasgroup2=http://localhost:8080" -e "username=admin" -e "password=strong_password" -e "extra_params=--o:ssl.enable=false" --restart always --name collabora --privileged --security-opt="seccomp=unconfined" collabora/code 

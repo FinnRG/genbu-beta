@@ -11,7 +11,7 @@ use http::HeaderMap;
 use hyper::StatusCode;
 
 use serde_json::json;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use wopi_rs::{content::FileContentRequest, file::FileRequest};
 
 use crate::{
@@ -73,12 +73,24 @@ pub async fn start_download<S: AppState>(
     Ok(Redirect::temporary(&redirect))
 }
 
+fn wopi_resp_unauthorized() -> WopiResponse {
+    WopiResponse(
+        http::Response::builder()
+            .status(StatusCode::UNAUTHORIZED)
+            .body(Bytes::new())
+            .unwrap(),
+    )
+}
+
 pub async fn wopi_file<S: AppState>(
     State(state): State<S>,
     WopiAuth(auth): WopiAuth,
     Wopi(req): Wopi<FileRequest<Bytes>>,
 ) -> impl IntoResponse {
-    info!("access token {:?}", req.access_token);
+    if req.file_id != auth.file_id.to_string() {
+        warn!("access token isn't granted for file_id {}", req.file_id);
+        return wopi_resp_unauthorized();
+    }
     let resp = wopi_handler::wopi_file(state, auth.user_id, req.request).await;
     WopiResponse(resp)
 }
@@ -88,6 +100,10 @@ pub async fn wopi_file_content<S: AppState>(
     WopiAuth(auth): WopiAuth,
     Wopi(req): Wopi<FileContentRequest<Bytes>>,
 ) -> impl IntoResponse {
+    if req.file_id != auth.file_id.to_string() {
+        warn!("access token isn't granted for file_id {}", req.file_id);
+        return wopi_resp_unauthorized();
+    }
     let resp = wopi_handler::wopi_file_content(state, auth.user_id, req.request).await;
     WopiResponse(resp)
 }

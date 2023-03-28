@@ -92,6 +92,12 @@ pub struct DBFile {
     pub created_at: OffsetDateTime,
 }
 
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct PartialDBFile {
+    pub size: Option<i64>,
+    pub path: Option<String>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, ToSchema, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
@@ -219,7 +225,7 @@ pub enum DBFileError {
     Connection(#[source] Box<dyn Error>),
 
     #[error("file is locked")]
-    Locked(Option<FileLock>),
+    Locked(FileLock),
 
     #[error("unknown internal error")]
     Other(#[source] Box<dyn Error>),
@@ -231,6 +237,11 @@ pub type FileResult<T> = Result<T, DBFileError>;
 pub trait DBFileStore {
     async fn get_dbfile(&self, file_id: Uuid) -> FileResult<Option<DBFile>>;
     async fn get_dbfile_by_path(&self, path: &str) -> FileResult<Option<DBFile>>;
+    async fn update_dbfile(
+        &self,
+        file_id: Uuid,
+        update: &PartialDBFile,
+    ) -> FileResult<Option<DBFile>>;
     async fn validate_lock(&self, file_id: Uuid, lock: FileLock) -> FileResult<Option<bool>> {
         let Some(file) = self.get_dbfile(file_id).await? else {
             return Ok(None);
@@ -241,6 +252,12 @@ pub trait DBFileStore {
     async fn lock(&self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>>;
     async fn unlock(&self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>>;
     async fn extend_lock(&self, file_id: Uuid, lock: FileLock) -> FileResult<Option<()>>;
+    async fn unlock_and_relock(
+        &self,
+        file_id: Uuid,
+        old_lock: FileLock,
+        new_lock: FileLock,
+    ) -> FileResult<Option<()>>;
 }
 
 #[cfg(test)]

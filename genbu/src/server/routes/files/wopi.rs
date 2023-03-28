@@ -66,7 +66,7 @@ impl<S: Send + Sync + AppState> FromRequestParts<S> for WopiAuth {
             .parse::<Uuid>()
             .map_err(|_| {
                 warn!("unable to parse access token as uuid");
-                StatusCode::BAD_REQUEST
+                StatusCode::UNAUTHORIZED
             })?
             .into();
 

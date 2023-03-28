@@ -2,6 +2,7 @@ use std::error::Error;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tokio::io::AsyncRead;
 use utoipa::ToSchema;
 
 use crate::stores::{Reset, Setup};
@@ -82,4 +83,5 @@ pub trait FileStorage: Reset + Setup + Clone + Sized + Send + Sync + 'static {
         parts: Vec<Part>,
     ) -> Result<()>;
     async fn upload(&self, bucket: Bucket, name: &str, data: Vec<u8>) -> Result<()>;
+    async fn download(&self, bucket: Bucket, name: &str) -> Result<Vec<u8>>;
 }

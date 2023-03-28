@@ -134,7 +134,28 @@ impl FileStorage for S3Store {
             .map(|_| ())
             .map_err(map_sdk_err)
     }
+
+    async fn download(&self, bucket: Bucket, name: &str) -> Result<Vec<u8>, FileError> {
+        let resp = self
+            .client
+            .get_object()
+            .bucket(bucket.to_bucket_name())
+            .key(name)
+            .send()
+            .await
+            .map_err(map_sdk_err)?;
+        Ok(resp
+            .body
+            .collect()
+            .await
+            .map_err(|_| FileError::Other(Box::new(InvalidByteStream)))?
+            .to_vec())
+    }
 }
+
+#[derive(Debug, thiserror::Error)]
+#[error("invalid bytestream")]
+struct InvalidByteStream;
 
 #[derive(Debug, thiserror::Error)]
 #[error("no upload id was returned from store")]
