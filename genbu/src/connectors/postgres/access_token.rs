@@ -1,13 +1,10 @@
 use std::net::IpAddr;
 
 use crate::stores::{
-    files::{
-        access_token::{
-            AccessToken, AccessTokenContext, AccessTokenError, AccessTokenStore, TokenResult,
-        },
-        database::DBFile,
+    files::access_token::{
+        AccessToken, AccessTokenContext, AccessTokenError, AccessTokenStore, TokenResult,
     },
-    users::User,
+    Uuid,
 };
 
 use super::PgStore;
@@ -31,8 +28,8 @@ impl AccessTokenStore for PgStore {
     #[tracing::instrument(skip(self))]
     async fn create_token(
         &self,
-        user: &User,
-        file: &DBFile,
+        user_id: Uuid,
+        file_id: Uuid,
         from: IpAddr,
     ) -> TokenResult<AccessToken> {
         let token = sqlx::query_scalar!(
@@ -41,8 +38,8 @@ impl AccessTokenStore for PgStore {
             values ($1, $2, $3)
             returning token
         "#,
-            user.id,
-            file.id as _,
+            user_id,
+            file_id,
             from as _
         )
         .fetch_one(&self.conn)

@@ -1,6 +1,6 @@
 use axum::{
     body::Body,
-    extract::{FromRequest, FromRequestParts, Query, State},
+    extract::{FromRequest, FromRequestParts, Query},
     response::IntoResponse,
     RequestPartsExt,
 };
@@ -8,7 +8,7 @@ use bytes::Bytes;
 use http::{request::Parts, Request, StatusCode};
 use hyper::body::to_bytes;
 use serde::Deserialize;
-use tracing::{error, warn};
+use tracing::{error, trace, warn};
 use wopi_rs::WopiRequest;
 
 use crate::{
@@ -28,6 +28,10 @@ impl<T: TryFrom<http::Request<Bytes>>, S: Send + Sync> FromRequest<S, Body> for 
 
     // TODO: Check Content-Length for malicious input (see to_bytes docs for example)
     async fn from_request(req: Request<Body>, _: &S) -> Result<Self, Self::Rejection> {
+        trace!(
+            "X-WOPI-Override Value: {:?}",
+            req.headers().get("X-WOPI-Override")
+        );
         let (parts, b) = req.into_parts();
         let b = to_bytes(b).await.map_err(|e| {
             error!("error while collecting body {:?}", e);

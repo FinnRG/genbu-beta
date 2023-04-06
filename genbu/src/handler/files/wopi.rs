@@ -15,6 +15,7 @@ use crate::{
     server::routes::AppState,
     stores::{
         files::{
+            access_token::AccessTokenStore,
             database::{DBFile, DBFileError, DBFileStore, FileLock, LeaseID, PartialDBFile},
             storage::Bucket,
             FileStorage,
@@ -89,13 +90,13 @@ async fn handle_check_file_info(
         owner_id: user_id.to_string(), // TODO: Update this if sharing is enabled
         user_id: user_id.to_string(),
         size: db_file.size,
-        read_only: false,
-        user_can_write: true,
-        supports_locks: true,
-        supports_get_lock: true,
-        supports_extended_lock_length: true,
-        supports_update: true, // TODO: Check group permissions in the future
-        user_can_not_write_relative: false,
+        read_only: Some(false),
+        user_can_write: Some(true),
+        supports_locks: Some(true),
+        supports_get_lock: Some(true),
+        supports_extended_lock_length: Some(true),
+        supports_update: Some(true), // TODO: Check group permissions in the future
+        user_can_not_write_relative: Some(false),
         ..CheckFileInfoResponse::default()
     };
     WopiResponse::Ok(resp)
@@ -220,8 +221,8 @@ async fn handle_put_relative_specific(
     }
 
     // Add a new DBFile to the database
-    let dbfile = DBFile::new(&path, user_id, size);
-    match file_db.add_dbfile(&dbfile).await {
+    let new_file = DBFile::new(&path, user_id, size);
+    match file_db.add_dbfile(&new_file).await {
         Ok(_) => {}
         Err(e) => {
             // At this stage the file should never be locked
@@ -230,6 +231,18 @@ async fn handle_put_relative_specific(
         }
     }
 
+    let access_token = match state
+        .store()
+        .create_token(user_id, new_file.id.0, "127.0.0.1".parse().unwrap())
+        .await
+    {
+        Ok(t) => t,
+        Err(e) => {
+            error!("{e:?}");
+            return Response::InternalServerError;
+        }
+    };
+
     match state
         .file()
         .upload(Bucket::UserFiles, &path, data.into())
@@ -237,9 +250,14 @@ async fn handle_put_relative_specific(
     {
         Ok(_) => Response::Ok(PutRelativeFileResponse::Ok(PutRelativeFileResponseBody {
             name: relative_target,
-            url: format!("{}/api/wopi/files/{}", state.host(), dbfile.id),
-            host_view_url: todo!(),
-            host_edit_url: todo!(),
+            url: format!(
+                "{}/api/wopi/files/{}?access_token={}",
+                state.host(),
+                new_file.id,
+                access_token
+            ),
+            host_view_url: None,
+            host_edit_url: None,
         })),
         Err(e) => {
             error!("error while uploading to userfiles {e:?}");
@@ -306,11 +324,28 @@ async fn handle_put_relative_file_suggested(
         }
     }
 
+    let access_token = match state
+        .store()
+        .create_token(user_id, new_file.id.0, "127.0.0.1".parse().unwrap())
+        .await
+    {
+        Ok(t) => t,
+        Err(e) => {
+            error!("{e:?}");
+            return Response::InternalServerError;
+        }
+    };
+
     Response::Ok(PutRelativeFileResponse::Ok(PutRelativeFileResponseBody {
         name: suggestion,
-        url: todo!(),
-        host_view_url: todo!(),
-        host_edit_url: todo!(),
+        url: format!(
+            "{}/api/wopi/files/{}?access_token={}",
+            state.host(),
+            new_file.id,
+            access_token
+        ),
+        host_view_url: None,
+        host_edit_url: None,
     }))
 }
 

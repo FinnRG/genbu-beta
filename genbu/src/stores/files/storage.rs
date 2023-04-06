@@ -2,7 +2,6 @@ use std::error::Error;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tokio::io::AsyncRead;
 use utoipa::ToSchema;
 
 use crate::stores::{Reset, Setup};

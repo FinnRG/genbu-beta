@@ -7,11 +7,10 @@ use axum::{
 };
 use bytes::Bytes;
 use genbu_auth::authn::Claims;
-use http::HeaderMap;
 use hyper::StatusCode;
 
 use serde_json::json;
-use tracing::{error, info, warn};
+use tracing::{error, warn};
 use wopi_rs::{content::FileContentRequest, file::FileRequest};
 
 use crate::{
@@ -24,10 +23,7 @@ use crate::{
         wopi as wopi_handler,
     },
     server::middlewares::auth::auth,
-    stores::{
-        files::{database::DBFileError, storage::FileError, UploadLeaseError},
-        Uuid,
-    },
+    stores::files::{database::DBFileError, storage::FileError, UploadLeaseError},
 };
 
 use self::wopi::{Wopi, WopiAuth, WopiResponse};

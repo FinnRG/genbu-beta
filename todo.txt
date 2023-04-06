@@ -1,0 +1,1 @@
+- Check that file exists before wopi updates to prevent a write/update if tab with wopi is still open

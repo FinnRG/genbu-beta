@@ -1,10 +1,8 @@
-use std::{error::Error, net::IpAddr};
+use std::{error::Error, fmt::Display, net::IpAddr};
 
 use thiserror::Error;
 
-use crate::stores::{users::User, Uuid};
-
-use super::database::DBFile;
+use crate::stores::Uuid;
 
 #[derive(Debug, Error)]
 pub enum AccessTokenError {
@@ -28,6 +26,12 @@ impl From<Uuid> for AccessToken {
     }
 }
 
+impl Display for AccessToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct AccessTokenContext {
     pub token: AccessToken,
@@ -37,7 +41,8 @@ pub struct AccessTokenContext {
 
 #[async_trait::async_trait]
 pub trait AccessTokenStore {
-    async fn create_token(&self, user: &User, file: &DBFile, from: IpAddr) -> Result<AccessToken>;
+    async fn create_token(&self, user_id: Uuid, file_id: Uuid, from: IpAddr)
+        -> Result<AccessToken>;
     async fn get_token_context(&self, token: AccessToken) -> Result<Option<AccessTokenContext>>;
     async fn revoke_token(&self, token: AccessToken) -> Result<()>;
     // TODO: Consider future functions: get_tokens,get_tokens_for_user
