@@ -110,7 +110,7 @@ pub async fn build_app() -> Router {
         .await
         .unwrap();
     pg_store.setup().await.expect("Unable to setup store");
-    let mut file_store = s3::S3Store::new().await;
+    let mut file_store = s3::S3Store::new("http://127.0.0.1:9000").await;
     file_store
         .setup()
         .await

@@ -415,12 +415,13 @@ async fn handle_put_file(
     };
 
     // TODO: This implicitly imposes an upper limit on the max file size at i64::MAX
+    // Which is fine, but should be documented
     let Ok(new_size) = body.len().try_into() else {
         return Response::Ok(PutFileResponse::TooLarge);
     };
 
     // Update file size in database if necessary
-    // TODO: Do this in parallen with uploading
+    // TODO: Do this in parallel with uploading
     if dbfile.size != new_size {
         match state
             .store()

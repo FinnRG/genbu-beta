@@ -56,12 +56,11 @@ impl S3Store {
         resp.map(|_| ()).map_err(map_sdk_err)
     }
 
-    // TODO: Give server config here
-    pub async fn new() -> Self {
+    pub async fn new(conn: impl Into<String>) -> Self {
         let region_provider = RegionProviderChain::default_provider().or_else("us-east-1");
         let config = aws_config::from_env()
             .region(region_provider)
-            .endpoint_url("http://127.0.0.1:9000")
+            .endpoint_url(conn)
             .load()
             .await;
         let client = Client::new(&config);

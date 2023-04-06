@@ -40,27 +40,35 @@ fn init_telemetry() {
         .expect("unable to initialize tacing-subscriber");
 }
 
+macro_rules! fetch_env {
+    ($name:ident) => {
+        let $name = std::env::var(stringify!($name).to_uppercase())
+            .expect(&(stringify!($name).to_uppercase() + " env variable is required"));
+    };
+}
+
 #[tokio::main]
 async fn main() -> Result<(), impl Debug> {
     dotenvy::dotenv().expect("unable to initialize dotenvy");
 
     init_telemetry();
 
+    info!("Fetching environment variables");
+    fetch_env!(host_url);
+    fetch_env!(database_url);
+    fetch_env!(s3_url);
+
     info!("Connecting to to postgres");
-    let pg_store = PgStore::new("postgres://genbu:strong_password@127.0.0.1:5432/genbu".into())
-        // TODO:
-        // Make
-        // this
-        // configurable
+    let pg_store = PgStore::new(database_url.into())
         .await
         .expect("unable to connect to Postgres");
 
-    let mut s3_store = s3::S3Store::new().await;
+    let mut s3_store = s3::S3Store::new(s3_url).await;
 
     info!("Connecting to S3");
     s3_store.setup().await.expect("unable to setup S3");
 
-    let state = ServerAppState::new(pg_store, s3_store, "http://127.0.0.1:8080".to_owned());
+    let state = ServerAppState::new(pg_store, s3_store, host_url);
 
     info!("Starting server");
     GenbuServer::new(state).start().await
